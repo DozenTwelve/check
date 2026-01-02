@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { pool } = require('./config/db');
 const { requireUser } = require('./middlewares/auth');
