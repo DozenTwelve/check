@@ -216,7 +216,7 @@ app.post('/daily-returns', requireUser, requireRole(['driver', 'clerk']), async 
 
     const headerResult = await client.query(
       `INSERT INTO daily_returns (biz_date, factory_id, v_level, created_by, note)
-       VALUES ($1, $2, COALESCE($3, 'verbal_only'), $4, $5)
+       VALUES ($1, $2, COALESCE($3::verification_level, 'verbal_only'::verification_level), $4, $5)
        RETURNING id`,
       [biz_date, factory_id, v_level ?? null, req.user.id, note ?? null]
     );
