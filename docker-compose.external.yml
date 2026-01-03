@@ -20,10 +20,9 @@ services:
     restart: unless-stopped
 
   server:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./server:/app
+    build:
+      context: .
+      target: server
     environment:
       DATABASE_URL: postgres://checkingall:checkingall@db:5432/checkingall
       JWT_SECRET: change_me
@@ -33,21 +32,16 @@ services:
         condition: service_healthy
     ports:
       - "7787:3001"
-    command: sh -c "npm install && npm start"
     restart: unless-stopped
 
   client:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./client:/app
-    environment:
-      VITE_API_PROXY_TARGET: http://server:3001
+    build:
+      context: .
+      target: client
     depends_on:
       - server
     ports:
-      - "7788:7788"
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 7788"
+      - "7788:80"
     restart: unless-stopped
 
 volumes:
