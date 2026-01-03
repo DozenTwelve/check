@@ -283,6 +283,10 @@ exports.getFactoryBoxHistory = async (req, res) => {
     }
 
     try {
+        if (role === 'manager' && !site_id) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+
         if (role === 'manager') {
             const linkCheck = await pool.query(
                 'SELECT 1 FROM site_factories WHERE site_id = $1 AND factory_id = $2',

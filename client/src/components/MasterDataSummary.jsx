@@ -24,7 +24,11 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                 {t('components.master_data.subtitle')}
             </p>
             <div className="stats-grid">
-                <div className="stat-box has-tooltip">
+                <div
+                    className="stat-box has-tooltip"
+                    tabIndex={0}
+                    aria-label={t('components.master_data.factory_list')}
+                >
                     <div className="stat-label">{t('components.master_data.tag_factories')}</div>
                     <div className="stat-value">{factories.length}</div>
                     <div className="stat-sub">{t('components.master_data.available')}</div>
@@ -41,7 +45,11 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                         )}
                     </div>
                 </div>
-                <div className="stat-box has-tooltip">
+                <div
+                    className="stat-box has-tooltip"
+                    tabIndex={0}
+                    aria-label={t('components.master_data.consumable_list')}
+                >
                     <div className="stat-label">{t('components.master_data.tag_consumables')}</div>
                     <div className="stat-value">{consumables.length}</div>
                     <div className="stat-sub">{t('components.master_data.available')}</div>
