@@ -7,7 +7,8 @@ async function runMigration() {
     try {
         const migrationFiles = [
             // '5_site_mn_hierarchy.sql', -- Already run
-            '6_add_password_hash.sql'
+            '6_add_password_hash.sql',
+            '7_add_factory_baseline_boxes.sql'
         ];
 
         for (const file of migrationFiles) {

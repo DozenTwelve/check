@@ -1,11 +1,24 @@
 const { pool } = require('../config/db');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/auth');
 
 async function requireUser(req, res, next) {
-  const header = req.get('x-user-id');
-  const userId = header ? Number.parseInt(header, 10) : NaN;
+  const authHeader = req.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  if (!token) {
+    return res.status(401).json({ error: 'missing_or_invalid_token' });
+  }
+
+  let userId = NaN;
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    userId = Number.parseInt(payload?.id, 10);
+  } catch (err) {
+    return res.status(401).json({ error: 'invalid_token' });
+  }
 
   if (!Number.isInteger(userId)) {
-    return res.status(401).json({ error: 'missing_or_invalid_user_id' });
+    return res.status(401).json({ error: 'missing_or_invalid_token' });
   }
 
   try {

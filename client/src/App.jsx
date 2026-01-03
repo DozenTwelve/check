@@ -19,6 +19,7 @@ import { Adjustments } from './components/Adjustments';
 import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginPage } from './components/LoginPage';
+import { BoxCountsPanel } from './components/BoxCountsPanel';
 
 function useRoute() {
   const [path, setPath] = useState(() => window.location.pathname || '/');
@@ -190,14 +191,14 @@ function AppContent() {
         </header>
 
         <div className="grid">
-          <SessionControl
-            userIdInput={userIdInput}
-            setUserIdInput={setUserIdInput}
-            loadUser={loadUser}
-            user={user}
-            logout={logout}
-            notice={notice}
-          />
+        <SessionControl
+          userIdInput={userIdInput}
+          setUserIdInput={setUserIdInput}
+          loadUser={loadUser}
+          user={user}
+          onClear={() => loadUser('')}
+          notice={notice}
+        />
 
           <MasterDataSummary
             factories={factories}
@@ -354,73 +355,80 @@ function AppContent() {
       )}
 
       {user?.role === 'manager' && (
-        <section className="card" style={{ '--delay': '120ms' }}>
-          <h2 className="section-title">{t('ops.manager.title')}</h2>
-          <div className="tabs">
-            <button
-              type="button"
-              className={`tab ${managerTab === 'approvals' ? 'active' : ''}`}
-              onClick={() => setManagerTab('approvals')}
-            >
-              {t('ops.manager.tabs.approvals')}
-            </button>
-            <button
-              type="button"
-              className={`tab ${managerTab === 'confirmations' ? 'active' : ''}`}
-              onClick={() => setManagerTab('confirmations')}
-            >
-              {t('ops.manager.tabs.confirmations')}
-            </button>
-            <button
-              type="button"
-              className={`tab ${managerTab === 'adjustments' ? 'active' : ''}`}
-              onClick={() => setManagerTab('adjustments')}
-            >
-              {t('ops.manager.tabs.adjustments')}
-            </button>
-            <button
-              type="button"
-              className={`tab ${managerTab === 'reports' ? 'active' : ''}`}
-              onClick={() => setManagerTab('reports')}
-            >
-              {t('ops.manager.tabs.reports')}
-            </button>
-          </div>
+        <>
+          <BoxCountsPanel
+            userId={userId}
+            title={t('box_counts.manager_title')}
+            showBaseline={false}
+          />
+          <section className="card" style={{ '--delay': '120ms' }}>
+            <h2 className="section-title">{t('ops.manager.title')}</h2>
+            <div className="tabs">
+              <button
+                type="button"
+                className={`tab ${managerTab === 'approvals' ? 'active' : ''}`}
+                onClick={() => setManagerTab('approvals')}
+              >
+                {t('ops.manager.tabs.approvals')}
+              </button>
+              <button
+                type="button"
+                className={`tab ${managerTab === 'confirmations' ? 'active' : ''}`}
+                onClick={() => setManagerTab('confirmations')}
+              >
+                {t('ops.manager.tabs.confirmations')}
+              </button>
+              <button
+                type="button"
+                className={`tab ${managerTab === 'adjustments' ? 'active' : ''}`}
+                onClick={() => setManagerTab('adjustments')}
+              >
+                {t('ops.manager.tabs.adjustments')}
+              </button>
+              <button
+                type="button"
+                className={`tab ${managerTab === 'reports' ? 'active' : ''}`}
+                onClick={() => setManagerTab('reports')}
+              >
+                {t('ops.manager.tabs.reports')}
+              </button>
+            </div>
 
-          <div className="divider"></div>
+            <div className="divider"></div>
 
-          {managerTab === 'approvals' && (
-            <ManagerDashboard
-              userId={userId}
-              factories={factories}
-            />
-          )}
-          {managerTab === 'confirmations' && (
-            <Confirmations
-              userId={userId}
-              dailyReturns={dailyReturns}
-              onRefresh={loadDailyReturns}
-              onNotice={setNotice}
-            />
-          )}
-          {managerTab === 'adjustments' && (
-            <Adjustments
-              userId={userId}
-              dailyReturns={dailyReturns}
-              consumables={consumables}
-              onCreated={loadDailyReturns}
-              onNotice={setNotice}
-            />
-          )}
-          {managerTab === 'reports' && (
-            <Reports
-              onRun={handleReport}
-              reportRows={reportRows}
-              factories={factories}
-              consumables={consumables}
-            />
-          )}
-        </section>
+            {managerTab === 'approvals' && (
+              <ManagerDashboard
+                userId={userId}
+                factories={factories}
+              />
+            )}
+            {managerTab === 'confirmations' && (
+              <Confirmations
+                userId={userId}
+                dailyReturns={dailyReturns}
+                onRefresh={loadDailyReturns}
+                onNotice={setNotice}
+              />
+            )}
+            {managerTab === 'adjustments' && (
+              <Adjustments
+                userId={userId}
+                dailyReturns={dailyReturns}
+                consumables={consumables}
+                onCreated={loadDailyReturns}
+                onNotice={setNotice}
+              />
+            )}
+            {managerTab === 'reports' && (
+              <Reports
+                onRun={handleReport}
+                reportRows={reportRows}
+                factories={factories}
+                consumables={consumables}
+              />
+            )}
+          </section>
+        </>
       )}
     </div>
   );

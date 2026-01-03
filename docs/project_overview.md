@@ -24,7 +24,7 @@ The system replaces manual "check-in/check-out" processes with a digital ledger 
 -   **Runtime**: [Node.js](https://nodejs.org/)
 -   **Framework**: [Express.js](https://expressjs.com/)
 -   **Database Interface**: [node-postgres (pg)](https://node-postgres.com/) for direct, high-performance SQL execution.
--   **Authentication**: Custom middleware using `x-user-id` header (Simulated Auth for MVP) / Bcrypt for password hashing.
+-   **Authentication**: JWT-based login with bearer tokens; Bcrypt for password hashing.
 
 ### Database
 -   **RDBMS**: PostgreSQL

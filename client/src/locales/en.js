@@ -141,6 +141,20 @@ export const en = {
         },
         empty: 'No report rows yet.'
     },
+    box_counts: {
+        admin_title: 'Branch Box Counts',
+        manager_title: 'Branch Box Counts',
+        loading: 'Loading box counts...',
+        empty: 'No factory counts available.',
+        refresh: 'Refresh',
+        load_error: 'Failed to load box counts.',
+        last_updated: 'Last updated: {{time}}',
+        table: {
+            factory: 'Factory',
+            baseline: 'Baseline',
+            current: 'Current Boxes'
+        }
+    },
     daily_outbound: {
         title: 'Daily Outbound Report',
         subtitle: 'Report the total number of boxes sent out from the factory today.',
@@ -261,6 +275,7 @@ export const en = {
             code: 'Code',
             name: 'Name',
             active: 'Active',
+            baseline_boxes: 'Baseline Boxes',
             linked_factories: 'Linked Sub-Factories',
             linked_sites: 'Linked Sites',
             assigned_managers: 'Assigned Managers',
@@ -279,6 +294,7 @@ export const en = {
             no_factory: 'No Factory',
             password: 'Password',
             new_password_optional: 'New Password (Optional)',
+            baseline_boxes: 'e.g. 2000',
             select_site: '-- Select Site --',
             select_factory: '-- Select Factory --'
         },

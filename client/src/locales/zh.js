@@ -141,6 +141,20 @@ export const zh = {
         },
         empty: '暂无报表数据。'
     },
+    box_counts: {
+        admin_title: '分厂箱量监控',
+        manager_title: '分厂箱量监控',
+        loading: '正在加载箱量...',
+        empty: '暂无分厂箱量数据。',
+        refresh: '刷新',
+        load_error: '加载箱量失败。',
+        last_updated: '更新时间：{{time}}',
+        table: {
+            factory: '分厂',
+            baseline: '初始数量',
+            current: '当前箱量'
+        }
+    },
     daily_outbound: {
         title: '每日出库报表',
         subtitle: '填写今天从分厂发出的箱子总数。',
@@ -261,6 +275,7 @@ export const zh = {
             code: '编码',
             name: '名称',
             active: '启用',
+            baseline_boxes: '初始箱数',
             linked_factories: '关联分厂',
             linked_sites: '关联站点',
             assigned_managers: '已分配经理',
@@ -279,6 +294,7 @@ export const zh = {
             no_factory: '无分厂',
             password: '密码',
             new_password_optional: '新密码（可选）',
+            baseline_boxes: '例如 2000',
             select_site: '-- 选择站点 --',
             select_factory: '-- 选择分厂 --'
         },

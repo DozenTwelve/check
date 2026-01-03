@@ -20,10 +20,10 @@ exports.getDailyOutbound = async (req, res) => {
 };
 
 exports.upsertDailyOutbound = async (req, res) => {
-    const { userId } = req; // Clerk
+    const userId = req.user?.id; // Clerk
     const { biz_date, factory_id, quantity } = req.body;
 
-    if (!biz_date || !factory_id || quantity === undefined) {
+    if (!userId || !biz_date || !factory_id || quantity === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 

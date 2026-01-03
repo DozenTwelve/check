@@ -42,6 +42,7 @@ CREATE TABLE factories (
     id          bigserial PRIMARY KEY,
     code        text NOT NULL UNIQUE,
     name        text NOT NULL,
+    baseline_boxes integer NOT NULL DEFAULT 0,
     is_active   boolean NOT NULL DEFAULT true,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now()

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function SessionControl({ userIdInput, setUserIdInput, loadUser, user, logout, notice }) {
+export function SessionControl({ userIdInput, setUserIdInput, loadUser, user, onClear, notice }) {
     const { t } = useTranslation();
 
     return (
@@ -26,7 +26,7 @@ export function SessionControl({ userIdInput, setUserIdInput, loadUser, user, lo
                 <button
                     className="button secondary"
                     type="button"
-                    onClick={logout}
+                    onClick={onClear}
                 >
                     {t('components.session.clear')}
                 </button>

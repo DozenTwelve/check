@@ -1,5 +1,16 @@
 const { pool } = require('../config/db');
 
+function parseNonNegativeInteger(value) {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+        return NaN;
+    }
+    return parsed;
+}
+
 // Consumables
 exports.listConsumables = async (req, res, next) => {
     try {
@@ -60,7 +71,7 @@ exports.deleteConsumable = async (req, res, next) => {
 exports.getFactories = async (req, res, next) => {
     try {
         const result = await pool.query(
-            'SELECT id, code, name, is_active FROM factories ORDER BY code'
+            'SELECT id, code, name, is_active, baseline_boxes FROM factories ORDER BY code'
         );
         res.json(result.rows);
     } catch (err) {
@@ -115,7 +126,12 @@ exports.getSiteManagers = async (req, res) => {
 };
 
 exports.createFactory = async (req, res) => {
-    const { code, name, site_ids } = req.body; // site_ids is array of integers
+    const { code, name, site_ids, baseline_boxes } = req.body; // site_ids is array of integers
+
+    const baselineValue = parseNonNegativeInteger(baseline_boxes);
+    if (Number.isNaN(baselineValue)) {
+        return res.status(400).json({ error: 'Invalid baseline_boxes' });
+    }
 
     if (!code || !name) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -127,8 +143,8 @@ exports.createFactory = async (req, res) => {
 
         // 1. Create Factory
         const resFactory = await client.query(
-            'INSERT INTO factories (code, name) VALUES ($1, $2) RETURNING *',
-            [code, name]
+            'INSERT INTO factories (code, name, baseline_boxes) VALUES ($1, $2, $3) RETURNING *',
+            [code, name, baselineValue ?? 0]
         );
         const factoryId = resFactory.rows[0].id;
 
@@ -158,15 +174,20 @@ exports.createFactory = async (req, res) => {
 
 exports.updateFactory = async (req, res) => {
     const { id } = req.params;
-    const { code, name, site_ids, is_active } = req.body;
+    const { code, name, site_ids, is_active, baseline_boxes } = req.body;
+
+    const baselineValue = parseNonNegativeInteger(baseline_boxes);
+    if (Number.isNaN(baselineValue)) {
+        return res.status(400).json({ error: 'Invalid baseline_boxes' });
+    }
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const result = await client.query(
-            `UPDATE factories SET code = $1, name = $2, is_active = $3, updated_at = now() 
-       WHERE id = $4 RETURNING *`,
-            [code, name, is_active ?? true, id]
+            `UPDATE factories SET code = $1, name = $2, is_active = $3, baseline_boxes = COALESCE($4, baseline_boxes), updated_at = now() 
+       WHERE id = $5 RETURNING *`,
+            [code, name, is_active ?? true, baselineValue, id]
         );
         if (result.rowCount === 0) {
             await client.query('ROLLBACK');
@@ -192,6 +213,64 @@ exports.updateFactory = async (req, res) => {
         res.status(500).json({ error: 'Update failed' });
     } finally {
         client.release();
+    }
+};
+
+exports.getFactoryBoxCounts = async (req, res) => {
+    const { role, site_id } = req.user;
+
+    if (role === 'manager' && !site_id) {
+        return res.json([]);
+    }
+
+    const params = [];
+    let joinClause = '';
+    let whereClause = '';
+    if (role === 'manager') {
+        joinClause = 'JOIN site_factories sf ON sf.factory_id = f.id';
+        whereClause = 'WHERE sf.site_id = $1';
+        params.push(site_id);
+    }
+
+    try {
+        const result = await pool.query(`
+      SELECT DISTINCT
+        f.id,
+        f.code,
+        f.name,
+        f.baseline_boxes,
+        COALESCE(trip_out.total, 0) AS trips_out,
+        COALESCE(outbound_out.total, 0) AS outbound_out,
+        COALESCE(restock_in.total, 0) AS restocks_in,
+        (f.baseline_boxes + COALESCE(restock_in.total, 0) - COALESCE(trip_out.total, 0) - COALESCE(outbound_out.total, 0)) AS current_boxes
+      FROM factories f
+      ${joinClause}
+      LEFT JOIN (
+        SELECT factory_id, SUM(quantity) AS total
+        FROM return_trips
+        WHERE status = 'approved'
+        GROUP BY factory_id
+      ) trip_out ON trip_out.factory_id = f.id
+      LEFT JOIN (
+        SELECT factory_id, SUM(quantity) AS total
+        FROM daily_outbound
+        WHERE status = 'approved'
+        GROUP BY factory_id
+      ) outbound_out ON outbound_out.factory_id = f.id
+      LEFT JOIN (
+        SELECT factory_id, SUM(quantity) AS total
+        FROM factory_restocks
+        WHERE status = 'received'
+        GROUP BY factory_id
+      ) restock_in ON restock_in.factory_id = f.id
+      ${whereClause}
+      ORDER BY f.code
+    `, params);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load box counts' });
     }
 };
 

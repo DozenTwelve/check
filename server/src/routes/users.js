@@ -7,6 +7,7 @@ const { requireRole } = require('../middlewares/requireRole');
 
 router.get('/me', requireUser, authController.getMe);
 router.post('/login', authController.login);
+router.post('/impersonate', requireUser, requireRole(['admin']), authController.impersonate);
 
 // List users (Admin)
 router.get('/', requireUser, requireRole(['admin']), userController.listUsers);

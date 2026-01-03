@@ -14,13 +14,15 @@ async function parseJsonResponse(response) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const { method = 'GET', body, userId } = options;
+  const { method = 'GET', body, userId, token, headers: extraHeaders } = options;
   const headers = {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    ...(extraHeaders || {})
   };
 
-  if (userId) {
-    headers['x-user-id'] = String(userId);
+  const authToken = token || localStorage.getItem('ledger_token');
+  if (!headers.Authorization && authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

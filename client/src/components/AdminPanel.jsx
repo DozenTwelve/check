@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
+import { BoxCountsPanel } from './BoxCountsPanel';
 
 export function AdminPanel({ user, userId, factories, consumables, onRefresh, onNotice }) {
     const { t } = useTranslation();
@@ -23,7 +24,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
     // Forms
     const [siteForm, setSiteForm] = useState({ name: '', code: '', is_active: true, factory_ids: [] });
-    const [factoryForm, setFactoryForm] = useState({ name: '', code: '', site_ids: [], is_active: true });
+    const [factoryForm, setFactoryForm] = useState({ name: '', code: '', site_ids: [], baseline_boxes: '', is_active: true });
     const [userForm, setUserForm] = useState({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
     const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true });
 
@@ -69,7 +70,13 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             });
         } else if (type === 'factory') {
             setEditingFactoryId(item.id);
-            setFactoryForm({ name: item.name, code: item.code, is_active: item.is_active, site_ids: [] });
+            setFactoryForm({
+                name: item.name,
+                code: item.code,
+                baseline_boxes: item.baseline_boxes ?? 0,
+                is_active: item.is_active,
+                site_ids: []
+            });
             // Fetch sites
             apiFetch(`/factories/${item.id}/sites`, { userId }).then(sites => {
                 setFactoryForm(prev => ({ ...prev, site_ids: sites.map(s => s.id) }));
@@ -95,7 +102,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
     const handleCancel = () => {
         setIsViewMode(false);
         setEditingSiteId(null); setSiteForm({ name: '', code: '', is_active: true, factory_ids: [] }); setCurrentSiteManagers([]);
-        setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], is_active: true }); setCurrentFactoryStaff([]);
+        setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], baseline_boxes: '', is_active: true }); setCurrentFactoryStaff([]);
         setEditingUserId(null); setUserForm({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
         setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true });
     };
@@ -140,10 +147,19 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
         const isEdit = !!editingFactoryId;
         const url = isEdit ? `/factories/${editingFactoryId}` : '/factories';
         const method = isEdit ? 'PUT' : 'POST';
+        const baselineValue = factoryForm.baseline_boxes === '' ? 0 : Number(factoryForm.baseline_boxes);
+        if (Number.isNaN(baselineValue) || baselineValue < 0) {
+            onNotice({ type: 'error', text: t('admin.notices.operation_failed') });
+            return;
+        }
         try {
             await apiFetch(url, {
                 method,
-                body: { ...factoryForm, site_ids: Array.from(factoryForm.site_ids).map(Number) },
+                body: {
+                    ...factoryForm,
+                    baseline_boxes: baselineValue,
+                    site_ids: Array.from(factoryForm.site_ids).map(Number)
+                },
                 userId
             });
             handleCancel();
@@ -335,6 +351,11 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
             {activeTab === 'factories' && (
                 <>
+                    <BoxCountsPanel
+                        userId={userId}
+                        title={t('box_counts.admin_title')}
+                        showBaseline
+                    />
                     <form onSubmit={handleFactorySubmit} className="card" style={{ borderColor: editingFactoryId ? 'var(--accent)' : '' }}>
                         <h3>
                             {isViewMode
@@ -370,6 +391,19 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                             disabled={isViewMode || !isAdmin}
                                         /> {t('admin.labels.active')}
                                     </label>
+                                </div>
+                                <div>
+                                    <label className="label">{t('admin.labels.baseline_boxes')}</label>
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        min="0"
+                                        placeholder={t('admin.placeholders.baseline_boxes')}
+                                        value={factoryForm.baseline_boxes}
+                                        onChange={e => setFactoryForm({ ...factoryForm, baseline_boxes: e.target.value })}
+                                        required
+                                        disabled={isViewMode || !isAdmin}
+                                    />
                                 </div>
 
                                 <label className="label">{t('admin.labels.linked_sites')}</label>
