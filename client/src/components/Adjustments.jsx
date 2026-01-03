@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNotice }) {
+    const { t } = useTranslation();
     const [dailyReturnId, setDailyReturnId] = useState('');
     const [note, setNote] = useState('');
     const [lines, setLines] = useState([
@@ -52,12 +54,12 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                 userId
             });
 
-            onNotice({ type: 'success', text: 'Adjustment recorded.' });
+            onNotice({ type: 'success', text: t('notices.adjustment_success') });
             setNote('');
             setLines([{ consumable_id: '', delta_qty: '', reason: '' }]);
             onCreated();
         } catch (err) {
-            onNotice({ type: 'error', text: 'Failed to create adjustment.' });
+            onNotice({ type: 'error', text: t('notices.adjustment_error') });
         } finally {
             setSubmitting(false);
         }
@@ -67,13 +69,13 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
         <form onSubmit={handleSubmit}>
             <div className="row">
                 <div>
-                    <label className="label">Daily Return</label>
+                    <label className="label">{t('adjustments.daily_return')}</label>
                     <select
                         className="select"
                         value={dailyReturnId}
                         onChange={(event) => setDailyReturnId(event.target.value)}
                     >
-                        <option value="">Select return</option>
+                        <option value="">{t('adjustments.select_return')}</option>
                         {dailyReturns.map((doc) => (
                             <option key={doc.id} value={doc.id}>
                                 #{doc.id} — {doc.biz_date} (factory {doc.factory_id})
@@ -82,7 +84,7 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                     </select>
                 </div>
                 <div>
-                    <label className="label">Note</label>
+                    <label className="label">{t('adjustments.note')}</label>
                     <input
                         className="input"
                         value={note}
@@ -92,18 +94,18 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
             </div>
 
             <div className="divider"></div>
-            <h3 className="section-title">Adjustment Lines</h3>
+            <h3 className="section-title">{t('adjustments.lines_title')}</h3>
 
             {lines.map((line, index) => (
                 <div className="row" key={`adj-${index}`}>
                     <div>
-                        <label className="label">Consumable</label>
+                        <label className="label">{t('adjustments.consumable')}</label>
                         <select
                             className="select"
                             value={line.consumable_id}
                             onChange={(event) => updateLine(index, 'consumable_id', event.target.value)}
                         >
-                            <option value="">Select consumable</option>
+                            <option value="">{t('daily_return.form.select_consumable')}</option>
                             {consumables.map((consumable) => (
                                 <option key={consumable.id} value={consumable.id}>
                                     {consumable.code} - {consumable.name}
@@ -112,7 +114,7 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                         </select>
                     </div>
                     <div>
-                        <label className="label">Delta Qty</label>
+                        <label className="label">{t('adjustments.delta_qty')}</label>
                         <input
                             className="input"
                             type="number"
@@ -121,7 +123,7 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                         />
                     </div>
                     <div>
-                        <label className="label">Reason</label>
+                        <label className="label">{t('adjustments.reason')}</label>
                         <input
                             className="input"
                             value={line.reason}
@@ -129,14 +131,14 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                         />
                     </div>
                     <div>
-                        <label className="label">Remove</label>
+                        <label className="label">{t('adjustments.remove')}</label>
                         <button
                             className="button secondary"
                             type="button"
                             onClick={() => removeLine(index)}
                             disabled={lines.length === 1}
                         >
-                            Remove
+                            {t('adjustments.remove')}
                         </button>
                     </div>
                 </div>
@@ -144,10 +146,10 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
 
             <div className="divider"></div>
             <button className="button" type="button" onClick={addLine}>
-                Add Line
+                {t('adjustments.add_line')}
             </button>
             <button className="button" type="submit" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Submit Adjustment'}
+                {submitting ? t('adjustments.saving') : t('adjustments.submit')}
             </button>
         </form>
     );

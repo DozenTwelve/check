@@ -1,29 +1,32 @@
 import React from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function Confirmations({ userId, dailyReturns, onRefresh, onNotice }) {
+    const { t } = useTranslation();
+
     async function handleConfirm(id) {
         try {
             await apiFetch(`/daily-returns/${id}/confirm`, { method: 'POST', userId });
-            onNotice({ type: 'success', text: `Daily return #${id} confirmed.` });
+            onNotice({ type: 'success', text: t('notices.confirm_success', { id }) });
             onRefresh();
         } catch (err) {
-            onNotice({ type: 'error', text: 'Failed to confirm daily return.' });
+            onNotice({ type: 'error', text: t('notices.confirm_error') });
         }
     }
 
     return (
         <div>
-            <p className="subtitle">Confirm submitted returns to lock the evidence.</p>
+            <p className="subtitle">{t('confirmations.subtitle')}</p>
             <table className="table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Biz Date</th>
-                        <th>Factory</th>
-                        <th>Status</th>
-                        <th>Verification</th>
-                        <th></th>
+                        <th>{t('confirmations.table.id')}</th>
+                        <th>{t('confirmations.table.biz_date')}</th>
+                        <th>{t('confirmations.table.factory')}</th>
+                        <th>{t('confirmations.table.status')}</th>
+                        <th>{t('confirmations.table.verification')}</th>
+                        <th>{t('confirmations.table.actions')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,11 +36,11 @@ export function Confirmations({ userId, dailyReturns, onRefresh, onNotice }) {
                             <td>{doc.biz_date}</td>
                             <td>{doc.factory_id}</td>
                             <td>{doc.status}</td>
-                            <td>{doc.v_level}</td>
+                            <td>{t(`daily_return.v_levels.${doc.v_level}`)}</td>
                             <td>
                                 {doc.status !== 'confirmed' && doc.status !== 'voided' && (
                                     <button className="button" type="button" onClick={() => handleConfirm(doc.id)}>
-                                        Confirm
+                                        {t('confirmations.confirm_btn')}
                                     </button>
                                 )}
                             </td>
@@ -45,7 +48,7 @@ export function Confirmations({ userId, dailyReturns, onRefresh, onNotice }) {
                     ))}
                     {dailyReturns.length === 0 && (
                         <tr>
-                            <td colSpan="6">No returns available.</td>
+                            <td colSpan="6">{t('confirmations.empty')}</td>
                         </tr>
                     )}
                 </tbody>

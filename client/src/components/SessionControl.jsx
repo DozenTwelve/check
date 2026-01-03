@@ -1,22 +1,18 @@
 import React from 'react';
-
-const roleLabels = {
-    driver: 'Driver',
-    clerk: 'Clerk',
-    manager: 'Manager',
-    admin: 'Admin'
-};
+import { useTranslation } from '../hooks/useTranslation';
 
 export function SessionControl({ userId, setUserId, loadUser, user, logout, notice }) {
+    const { t } = useTranslation();
+
     return (
         <section className="card" style={{ '--delay': '0ms' }}>
-            <h2>Session Control</h2>
-            <label className="label" htmlFor="userId">User ID</label>
+            <h2>{t('components.session.title')}</h2>
+            <label className="label" htmlFor="userId">{t('components.session.user_id')}</label>
             <div className="row">
                 <input
                     id="userId"
                     className="input"
-                    placeholder="Enter user id"
+                    placeholder={t('components.session.placeholder')}
                     value={userId}
                     onChange={(event) => setUserId(event.target.value)}
                 />
@@ -25,21 +21,21 @@ export function SessionControl({ userId, setUserId, loadUser, user, logout, noti
                     type="button"
                     onClick={() => loadUser(userId)}
                 >
-                    Load User
+                    {t('components.session.load_user')}
                 </button>
                 <button
                     className="button secondary"
                     type="button"
                     onClick={logout}
                 >
-                    Clear
+                    {t('components.session.clear')}
                 </button>
             </div>
             {user && (
                 <>
                     <div className="divider"></div>
                     <div className="notice">
-                        Signed in as <strong>{user.display_name}</strong> ({roleLabels[user.role]}).
+                        {t('components.session.signed_in_as')} <strong>{user.display_name}</strong> ({t(`roles.${user.role}`)}).
                     </div>
                 </>
             )}

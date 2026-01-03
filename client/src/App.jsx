@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from './utils/api';
-import { roleLabels } from './constants';
 
 import { useAuth } from './hooks/useAuth';
 import { useMasterData } from './hooks/useMasterData';
 import { useDailyReturns } from './hooks/useDailyReturns';
+import { useTranslation } from './hooks/useTranslation';
+
+import { LanguageProvider } from './contexts/LanguageContext';
 
 import { SessionControl } from './components/SessionControl';
 import { MasterDataSummary } from './components/MasterDataSummary';
@@ -14,23 +16,25 @@ import { Adjustments } from './components/Adjustments';
 import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
 
-function App() {
+function AppContent() {
   const { userId, setUserId, user, notice, setNotice, loadUser, logout } = useAuth();
   const { factories, consumables, loadMasterData } = useMasterData(user, userId, setNotice);
   const { dailyReturns, loadDailyReturns } = useDailyReturns(user, userId, setNotice);
+
+  const { t, language, setLanguage } = useTranslation();
 
   const [reportRows, setReportRows] = useState([]);
   const [activeSection, setActiveSection] = useState('daily');
 
   const sections = useMemo(
     () => [
-      { key: 'daily', label: 'Daily Returns', roles: ['driver', 'clerk'] },
-      { key: 'confirm', label: 'Confirmations', roles: ['manager'] },
-      { key: 'adjust', label: 'Adjustments', roles: ['clerk', 'manager'] },
-      { key: 'report', label: 'As-Of Report', roles: ['manager', 'admin'] },
-      { key: 'admin', label: 'Master Data', roles: ['admin'] }
+      { key: 'daily', label: t('nav.daily_returns'), roles: ['driver', 'clerk'] },
+      { key: 'confirm', label: t('nav.confirmations'), roles: ['manager'] },
+      { key: 'adjust', label: t('nav.adjustments'), roles: ['clerk', 'manager'] },
+      { key: 'report', label: t('nav.reports'), roles: ['manager', 'admin'] },
+      { key: 'admin', label: t('nav.master_data'), roles: ['admin'] }
     ],
-    []
+    [t]
   );
 
   useEffect(() => {
@@ -52,7 +56,7 @@ function App() {
       );
       setReportRows(data || []);
     } catch (err) {
-      if (setNotice) setNotice({ type: 'error', text: 'Failed to load report rows.' });
+      if (setNotice) setNotice({ type: 'error', text: t('notices.report_error') });
     }
   }
 
@@ -63,23 +67,30 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1 className="title">CheckingAll Ledger MVP</h1>
+        <h1 className="title">{t('app.title')}</h1>
         <p className="subtitle">
-          Rolling ledger workspace for tracking reusable consumables. Sign in with a user id to
-          simulate the driver, clerk, manager, and admin workflows.
+          {t('app.subtitle')}
         </p>
         <div className="status-bar">
+          <button
+            className="pill button ghost small"
+            onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+            style={{ padding: '0.2rem 0.5rem', minWidth: 'auto' }}
+          >
+            <strong>{language === 'en' ? 'EN' : '中文'}</strong>
+          </button>
+
           <span className="pill">
-            API <strong>{user ? 'Connected' : 'Offline'}</strong>
+            API <strong>{user ? t('app.api_connected') : t('app.api_offline')}</strong>
           </span>
           {user && (
             <span className="pill">
-              Role <strong>{roleLabels[user.role]}</strong>
+              {t('app.role')} <strong>{t(`roles.${user.role}`)}</strong>
             </span>
           )}
           {user?.factory_id && (
             <span className="pill">
-              Factory <strong>#{user.factory_id}</strong>
+              {t('app.factory')} <strong>#{user.factory_id}</strong>
             </span>
           )}
         </div>
@@ -104,7 +115,7 @@ function App() {
 
       {user && (
         <section className="card" style={{ '--delay': '220ms' }}>
-          <h2 className="section-title">Role Workspace</h2>
+          <h2 className="section-title">{t('components.role_workspace.title')}</h2>
           <div className="tabs">
             {availableSections.map((section) => (
               <button
@@ -170,6 +181,14 @@ function App() {
         </section>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

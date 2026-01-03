@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from '../hooks/useTranslation';
 
 const verificationLevels = [
-    { value: 'verbal_only', label: 'Verbal only' },
-    { value: 'visual_estimate', label: 'Visual estimate' },
-    { value: 'full_count', label: 'Full count' },
-    { value: 'factory_directive', label: 'Factory directive' }
+    { value: 'verbal_only', label: 'verbal_only' },
+    { value: 'visual_estimate', label: 'visual_estimate' },
+    { value: 'full_count', label: 'full_count' },
+    { value: 'factory_directive', label: 'factory_directive' }
 ];
 
 function formatDateInput(date = new Date()) {
@@ -13,6 +14,7 @@ function formatDateInput(date = new Date()) {
 }
 
 export function DailyReturnForm({ user, userId, factories, consumables, onCreated, onNotice }) {
+    const { t } = useTranslation();
     const [bizDate, setBizDate] = useState(formatDateInput());
     const [factoryId, setFactoryId] = useState(user?.factory_id ?? '');
     const [vLevel, setVLevel] = useState('verbal_only');
@@ -78,12 +80,12 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                 userId
             });
 
-            onNotice({ type: 'success', text: 'Daily return submitted.' });
+            onNotice({ type: 'success', text: t('notices.daily_return_success') });
             setNote('');
             setLines([{ consumable_id: '', book_balance: '', declared_qty: '', discrepancy_note: '' }]);
             onCreated();
         } catch (err) {
-            onNotice({ type: 'error', text: 'Failed to submit daily return.' });
+            onNotice({ type: 'error', text: t('notices.daily_return_submit_error') });
         } finally {
             setSubmitting(false);
         }
@@ -93,7 +95,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
         <form onSubmit={handleSubmit}>
             <div className="row">
                 <div>
-                    <label className="label">Business Date</label>
+                    <label className="label">{t('daily_return.form.biz_date')}</label>
                     <input
                         className="input"
                         type="date"
@@ -102,13 +104,13 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                     />
                 </div>
                 <div>
-                    <label className="label">Factory</label>
+                    <label className="label">{t('daily_return.form.factory')}</label>
                     <select
                         className="select"
                         value={factoryId}
                         onChange={(event) => setFactoryId(event.target.value)}
                     >
-                        <option value="">Select factory</option>
+                        <option value="">{t('daily_return.form.select_factory')}</option>
                         {factories.map((factory) => (
                             <option key={factory.id} value={factory.id}>
                                 {factory.code} - {factory.name}
@@ -117,7 +119,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                     </select>
                 </div>
                 <div>
-                    <label className="label">Verification Level</label>
+                    <label className="label">{t('daily_return.form.v_level')}</label>
                     <select
                         className="select"
                         value={vLevel}
@@ -125,7 +127,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                     >
                         {verificationLevels.map((level) => (
                             <option key={level.value} value={level.value}>
-                                {level.label}
+                                {t(`daily_return.v_levels.${level.label}`)}
                             </option>
                         ))}
                     </select>
@@ -133,18 +135,18 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
             </div>
 
             <div className="divider"></div>
-            <h3 className="section-title">Line Items</h3>
+            <h3 className="section-title">{t('daily_return.form.line_items')}</h3>
 
             {lines.map((line, index) => (
                 <div className="row" key={`line-${index}`}>
                     <div>
-                        <label className="label">Consumable</label>
+                        <label className="label">{t('daily_return.form.consumable')}</label>
                         <select
                             className="select"
                             value={line.consumable_id}
                             onChange={(event) => updateLine(index, 'consumable_id', event.target.value)}
                         >
-                            <option value="">Select consumable</option>
+                            <option value="">{t('daily_return.form.select_consumable')}</option>
                             {consumables.map((consumable) => (
                                 <option key={consumable.id} value={consumable.id}>
                                     {consumable.code} - {consumable.name}
@@ -153,7 +155,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                         </select>
                     </div>
                     <div>
-                        <label className="label">Book Balance</label>
+                        <label className="label">{t('daily_return.form.book_balance')}</label>
                         <input
                             className="input"
                             type="number"
@@ -162,7 +164,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                         />
                     </div>
                     <div>
-                        <label className="label">Declared Qty</label>
+                        <label className="label">{t('daily_return.form.declared_qty')}</label>
                         <input
                             className="input"
                             type="number"
@@ -172,7 +174,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                         />
                     </div>
                     <div>
-                        <label className="label">Discrepancy Note</label>
+                        <label className="label">{t('daily_return.form.discrepancy_note')}</label>
                         <input
                             className="input"
                             value={line.discrepancy_note}
@@ -180,14 +182,14 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
                         />
                     </div>
                     <div>
-                        <label className="label">Remove</label>
+                        <label className="label">{t('daily_return.form.remove')}</label>
                         <button
                             className="button secondary"
                             type="button"
                             onClick={() => removeLine(index)}
                             disabled={lines.length === 1}
                         >
-                            Remove
+                            {t('daily_return.form.remove')}
                         </button>
                     </div>
                 </div>
@@ -195,10 +197,10 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
 
             <div className="row">
                 <button className="button ghost" type="button" onClick={addLine}>
-                    Add Line
+                    {t('daily_return.form.add_line')}
                 </button>
                 <div>
-                    <label className="label">Note</label>
+                    <label className="label">{t('daily_return.form.note')}</label>
                     <textarea
                         className="textarea"
                         value={note}
@@ -209,7 +211,7 @@ export function DailyReturnForm({ user, userId, factories, consumables, onCreate
 
             <div className="divider"></div>
             <button className="button" type="submit" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Daily Return'}
+                {submitting ? t('daily_return.form.submitting') : t('daily_return.form.submit')}
             </button>
         </form>
     );

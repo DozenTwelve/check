@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../hooks/useTranslation';
 
 function formatDateTimeInput(date = new Date()) {
     return date.toISOString().slice(0, 16);
 }
 
 export function Reports({ onRun, reportRows, factories, consumables }) {
+    const { t } = useTranslation();
     const [asOf, setAsOf] = useState(formatDateTimeInput());
     const [confirmedOnly, setConfirmedOnly] = useState(true);
 
@@ -22,7 +24,7 @@ export function Reports({ onRun, reportRows, factories, consumables }) {
         <div>
             <div className="row">
                 <div>
-                    <label className="label">As-Of Timestamp</label>
+                    <label className="label">{t('reports.as_of')}</label>
                     <input
                         className="input"
                         type="datetime-local"
@@ -31,24 +33,24 @@ export function Reports({ onRun, reportRows, factories, consumables }) {
                     />
                 </div>
                 <div>
-                    <label className="label">Confirmed Only</label>
+                    <label className="label">{t('reports.confirmed_only')}</label>
                     <select
                         className="select"
                         value={confirmedOnly ? 'true' : 'false'}
                         onChange={(event) => setConfirmedOnly(event.target.value === 'true')}
                     >
-                        <option value="true">Yes</option>
-                        <option value="false">Include Submitted</option>
+                        <option value="true">{t('reports.yes')}</option>
+                        <option value="false">{t('reports.include_submitted')}</option>
                     </select>
                 </div>
                 <div>
-                    <label className="label">Run Report</label>
+                    <label className="label">{t('reports.run_btn')}</label>
                     <button
                         className="button"
                         type="button"
                         onClick={() => onRun(new Date(asOf).toISOString(), confirmedOnly)}
                     >
-                        Fetch Balances
+                        {t('reports.run_btn')}
                     </button>
                 </div>
             </div>
@@ -58,10 +60,10 @@ export function Reports({ onRun, reportRows, factories, consumables }) {
             <table className="table">
                 <thead>
                     <tr>
-                        <th>Biz Date</th>
-                        <th>Factory</th>
-                        <th>Consumable</th>
-                        <th>As-of Qty</th>
+                        <th>{t('reports.table.biz_date')}</th>
+                        <th>{t('reports.table.factory')}</th>
+                        <th>{t('reports.table.consumable')}</th>
+                        <th>{t('reports.table.qty')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -75,7 +77,7 @@ export function Reports({ onRun, reportRows, factories, consumables }) {
                     ))}
                     {reportRows.length === 0 && (
                         <tr>
-                            <td colSpan="4">No report rows yet.</td>
+                            <td colSpan="4">{t('reports.empty')}</td>
                         </tr>
                     )}
                 </tbody>
