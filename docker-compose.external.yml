@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: checkingall
+      POSTGRES_PASSWORD: checkingall
+      POSTGRES_DB: checkingall
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./server/db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U checkingall -d checkingall"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  server:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./server:/app
+    environment:
+      DATABASE_URL: postgres://checkingall:checkingall@db:5432/checkingall
+      JWT_SECRET: change_me
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "7787:3001"
+    command: sh -c "npm install && npm start"
+    restart: unless-stopped
+
+  client:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./client:/app
+    environment:
+      VITE_API_PROXY_TARGET: http://server:3001
+    depends_on:
+      - server
+    ports:
+      - "7788:7788"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 7788"
+    restart: unless-stopped
+
+volumes:
+  db_data:
