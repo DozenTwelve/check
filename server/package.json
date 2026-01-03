@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "migrate": "node src/migrations/run.js"
+    "migrate": "node src/migrations/run.js",
+    "rehash-passwords": "node src/scripts/rehash_passwords.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

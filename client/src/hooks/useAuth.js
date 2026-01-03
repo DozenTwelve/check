@@ -5,7 +5,7 @@ import { useTranslation } from './useTranslation';
 export function useAuth() {
     const { t } = useTranslation();
     const [authUserId, setAuthUserId] = useState(() =>
-        localStorage.getItem('ledger_auth_user_id') || localStorage.getItem('ledger_user_id') || ''
+        localStorage.getItem('ledger_auth_user_id') || ''
     );
     const [authUser, setAuthUser] = useState(null);
     const [user, setUser] = useState(null);
@@ -13,6 +13,10 @@ export function useAuth() {
     const [userIdInput, setUserIdInput] = useState('');
     const [notice, setNotice] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        localStorage.removeItem('ledger_user_id');
+    }, []);
 
     useEffect(() => {
         if (!authUserId) {
@@ -43,7 +47,7 @@ export function useAuth() {
         } catch (err) {
             setAuthUser(null);
             setSessionUser(null);
-            setNotice({ type: 'error', text: t('notices.user_not_found') });
+            setNotice(null);
         } finally {
             setLoading(false);
         }
