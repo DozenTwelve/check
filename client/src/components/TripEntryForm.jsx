@@ -12,7 +12,6 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
     const [factorySites, setFactorySites] = useState([]);
     const [selectedSite, setSelectedSite] = useState('');
     const [trips, setTrips] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     // Form inputs
@@ -41,15 +40,12 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
     }, [selectedFactory]);
 
     async function loadMyTrips() {
-        setLoading(true);
         try {
             const data = await apiFetch('/trips', { userId });
             setTrips(data || []);
         } catch (err) {
             console.error(err);
             if (onNotice) onNotice({ type: 'error', text: t('trip_entry.notices.load_error') });
-        } finally {
-            setLoading(false);
         }
     }
 
