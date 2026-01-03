@@ -31,7 +31,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3001:3001"
+      - "7787:7787"
     command: sh -c "npm install && npm run migrate && npm start"
     restart: unless-stopped
 
@@ -45,7 +45,7 @@ services:
     depends_on:
       - server
     ports:
-      - "5173:5173"
+      - "7788:7788"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 7788"
     restart: unless-stopped
 
