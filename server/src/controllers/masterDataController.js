@@ -57,6 +57,17 @@ exports.deleteConsumable = async (req, res, next) => {
 };
 
 // Factories
+exports.getFactories = async (req, res, next) => {
+    try {
+        const result = await pool.query(
+            'SELECT id, code, name, is_active FROM factories ORDER BY code'
+        );
+        res.json(result.rows);
+    } catch (err) {
+        next(err);
+    }
+};
+
 exports.getFactorySites = async (req, res) => {
     const { factory_id } = req.params;
     try {

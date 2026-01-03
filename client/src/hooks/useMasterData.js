@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from './useTranslation';
 
 export function useMasterData(user, userId, setNotice) {
+    const { t } = useTranslation();
     const [factories, setFactories] = useState([]);
     const [consumables, setConsumables] = useState([]);
 
@@ -22,7 +24,7 @@ export function useMasterData(user, userId, setNotice) {
             setConsumables(consumableData || []);
         } catch (err) {
             if (setNotice) {
-                setNotice({ type: 'error', text: 'Failed to load master data.' });
+                setNotice({ type: 'error', text: t('notices.master_data_error') });
             }
         }
     }

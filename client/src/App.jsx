@@ -85,7 +85,7 @@ function AppContent() {
           </button>
 
           <span className="pill">
-            API <strong>{user ? t('app.api_connected') : t('app.api_offline')}</strong>
+            {t('app.api_label')} <strong>{user ? t('app.api_connected') : t('app.api_offline')}</strong>
           </span>
           {user && (
             <span className="pill">
@@ -158,7 +158,7 @@ function AppContent() {
             </>
           )}
           {activeSection === 'daily' && !['driver', 'clerk'].includes(user.role) && (
-            <div className="notice">Select a role workspace above.</div>
+            <div className="notice">{t('app.select_role_workspace')}</div>
           )}
           {activeSection === 'confirm' && (
             <ManagerDashboard

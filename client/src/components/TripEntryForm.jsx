@@ -4,6 +4,10 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export function TripEntryForm({ user, userId, factories, onNotice }) {
     const { t } = useTranslation();
+    const getStatusLabel = (status) => {
+        const label = t(`statuses.${status}`);
+        return label === `statuses.${status}` ? status : label;
+    };
     const [selectedFactory, setSelectedFactory] = useState(user?.factory_id || '');
     const [factorySites, setFactorySites] = useState([]);
     const [selectedSite, setSelectedSite] = useState('');
@@ -43,7 +47,7 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
             setTrips(data || []);
         } catch (err) {
             console.error(err);
-            if (onNotice) onNotice({ type: 'error', text: 'Failed to load trips' });
+            if (onNotice) onNotice({ type: 'error', text: t('trip_entry.notices.load_error') });
         } finally {
             setLoading(false);
         }
@@ -70,13 +74,13 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
                 userId
             });
 
-            if (onNotice) onNotice({ type: 'success', text: 'Trip submitted for approval' });
+            if (onNotice) onNotice({ type: 'success', text: t('trip_entry.notices.submit_success') });
             setQuantity('');
             setNote('');
             loadMyTrips(); // Refresh list
         } catch (err) {
             console.error(err);
-            if (onNotice) onNotice({ type: 'error', text: 'Submission failed' });
+            if (onNotice) onNotice({ type: 'error', text: t('trip_entry.notices.submit_error') });
         } finally {
             setSubmitting(false);
         }
@@ -84,17 +88,17 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
 
     return (
         <div className="card">
-            <h2 className="title">Daily Trip Entry</h2>
+            <h2 className="title">{t('trip_entry.title')}</h2>
 
             <div className="stack">
-                <label className="label">Select Factory</label>
+                <label className="label">{t('trip_entry.select_factory')}</label>
                 <select
                     className="select"
                     value={selectedFactory}
                     onChange={(e) => setSelectedFactory(e.target.value)}
                     disabled={!!user?.factory_id}
                 >
-                    <option value="">-- Choose Factory --</option>
+                    <option value="">{t('trip_entry.select_factory_placeholder')}</option>
                     {factories.map((f) => (
                         <option key={f.id} value={f.id}>{f.name}</option>
                     ))}
@@ -103,16 +107,16 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
                 {/* Site Selector (Only if factory is selected) */}
                 {selectedFactory && (
                     <div>
-                        <label className="label" style={{ marginTop: '0.5rem' }}>Select Destination Site</label>
+                        <label className="label" style={{ marginTop: '0.5rem' }}>{t('trip_entry.select_site')}</label>
                         {factorySites.length === 0 ? (
-                            <div className="text-sm text-gray client-site-loader">Loading sites...</div>
+                            <div className="text-sm text-gray client-site-loader">{t('trip_entry.loading_sites')}</div>
                         ) : (
                             <select
                                 className="select"
                                 value={selectedSite}
                                 onChange={(e) => setSelectedSite(e.target.value)}
                             >
-                                <option value="">-- Choose Site --</option>
+                                <option value="">{t('trip_entry.select_site_placeholder')}</option>
                                 {factorySites.map((s) => (
                                     <option key={s.id} value={s.id}>{s.name}</option>
                                 ))}
@@ -121,20 +125,20 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
                     </div>
                 )}
 
-                <label className="label" style={{ marginTop: '0.5rem' }}>Quantity Delivered (Boxes)</label>
+                <label className="label" style={{ marginTop: '0.5rem' }}>{t('trip_entry.quantity_label')}</label>
                 <input
                     className="input"
                     type="number"
-                    placeholder="e.g. 50"
+                    placeholder={t('trip_entry.quantity_placeholder')}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                 />
 
-                <label className="label" style={{ marginTop: '0.5rem' }}>Note (Optional)</label>
+                <label className="label" style={{ marginTop: '0.5rem' }}>{t('trip_entry.note_label_optional')}</label>
                 <input
                     className="input"
                     type="text"
-                    placeholder="e.g. Morning delivery"
+                    placeholder={t('trip_entry.note_placeholder')}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                 />
@@ -145,34 +149,34 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
                     disabled={!selectedFactory || !quantity || !selectedSite || submitting}
                     onClick={handleSubmit}
                 >
-                    {submitting ? 'Submitting...' : 'Submit Trip'}
+                    {submitting ? t('trip_entry.submitting') : t('trip_entry.submit')}
                 </button>
             </div>
 
             <div className="divider"></div>
 
-            <h3>My Recent Trips</h3>
+            <h3>{t('trip_entry.recent_title')}</h3>
             <table className="table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Factory</th>
-                        <th>Site</th>
-                        <th>Qty</th>
-                        <th>Status</th>
+                        <th>{t('trip_entry.table.date')}</th>
+                        <th>{t('trip_entry.table.factory')}</th>
+                        <th>{t('trip_entry.table.site')}</th>
+                        <th>{t('trip_entry.table.qty')}</th>
+                        <th>{t('trip_entry.table.status')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {trips.map(t => (
-                        <tr key={t.id}>
-                            <td>{t.biz_date.slice(0, 10)}</td>
-                            <td>{t.factory_name}</td>
-                            <td>{t.site_id /* In future, join site name in query */}</td>
-                            <td>{t.quantity}</td>
-                            <td>{t.status}</td>
+                    {trips.map((trip) => (
+                        <tr key={trip.id}>
+                            <td>{trip.biz_date.slice(0, 10)}</td>
+                            <td>{trip.factory_name}</td>
+                            <td>{trip.site_id /* In future, join site name in query */}</td>
+                            <td>{trip.quantity}</td>
+                            <td>{getStatusLabel(trip.status)}</td>
                         </tr>
                     ))}
-                    {trips.length === 0 && <tr><td colSpan="5">No trips found.</td></tr>}
+                    {trips.length === 0 && <tr><td colSpan="5">{t('trip_entry.empty')}</td></tr>}
                 </tbody>
             </table>
         </div>

@@ -50,10 +50,10 @@ export function DailyOutboundForm({ user, userId, factories, onNotice }) {
                 userId
             });
 
-            onNotice({ type: 'success', text: 'Daily outbound report saved.' });
+            onNotice({ type: 'success', text: t('daily_outbound.notice_success') });
             setSavedData(res);
         } catch (err) {
-            onNotice({ type: 'error', text: 'Failed to save report.' });
+            onNotice({ type: 'error', text: t('daily_outbound.notice_error') });
         } finally {
             setSubmitting(false);
         }
@@ -62,8 +62,8 @@ export function DailyOutboundForm({ user, userId, factories, onNotice }) {
     return (
         <div>
             <form onSubmit={handleSubmit}>
-                <h3>Daily Outbound Report</h3>
-                <p className="subtitle">Report the total number of boxes sent out from the factory today.</p>
+                <h3>{t('daily_outbound.title')}</h3>
+                <p className="subtitle">{t('daily_outbound.subtitle')}</p>
 
                 <div className="row">
                     <div>
@@ -95,20 +95,22 @@ export function DailyOutboundForm({ user, userId, factories, onNotice }) {
 
                 <div className="row" style={{ alignItems: 'flex-end' }}>
                     <div>
-                        <label className="label">Total Outbound Quantity</label>
+                        <label className="label">{t('daily_outbound.total_quantity')}</label>
                         <input
                             className="input"
                             type="number"
                             min="0"
                             value={quantity}
                             onChange={(event) => setQuantity(event.target.value)}
-                            placeholder="e.g. 500"
+                            placeholder={t('daily_outbound.quantity_placeholder')}
                             style={{ fontSize: '1.2rem', fontWeight: '600' }}
                         />
                     </div>
                     <div>
                         <button className="button" type="submit" disabled={submitting}>
-                            {submitting ? 'Saving...' : (savedData ? 'Update Report' : 'Submit Report')}
+                            {submitting
+                                ? t('daily_outbound.saving')
+                                : (savedData ? t('daily_outbound.update') : t('daily_outbound.submit'))}
                         </button>
                     </div>
                 </div>
@@ -116,7 +118,10 @@ export function DailyOutboundForm({ user, userId, factories, onNotice }) {
 
             {savedData && (
                 <div className="notice" style={{ marginTop: '24px' }}>
-                    Current saved total for <strong>{savedData.biz_date.slice(0, 10)}</strong> is <strong>{savedData.quantity}</strong> boxes.
+                    {t('daily_outbound.saved_notice', {
+                        date: savedData.biz_date.slice(0, 10),
+                        quantity: savedData.quantity
+                    })}
                 </div>
             )}
         </div>

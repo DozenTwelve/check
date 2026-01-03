@@ -81,7 +81,7 @@ export function ManagerDashboard({ userId, factories }) {
                 },
                 userId
             });
-            alert('Restock dispatched!');
+            alert(t('manager_dashboard.distribute.dispatched_notice'));
             setRestockForm({ factory_id: '', quantity: '', note: '' });
         } catch (err) {
             console.error(err);
@@ -92,13 +92,13 @@ export function ManagerDashboard({ userId, factories }) {
         <div>
             <div className="tabs">
                 <button className={`tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>
-                    Approvals
+                    {t('manager_dashboard.tabs.approvals')}
                 </button>
                 <button className={`tab ${activeTab === 'platform' ? 'active' : ''}`} onClick={() => setActiveTab('platform')}>
-                    Hub Receipt (Platform)
+                    {t('manager_dashboard.tabs.platform')}
                 </button>
                 <button className={`tab ${activeTab === 'distribute' ? 'active' : ''}`} onClick={() => setActiveTab('distribute')}>
-                    Distribution (Restock)
+                    {t('manager_dashboard.tabs.distribute')}
                 </button>
             </div>
 
@@ -106,11 +106,15 @@ export function ManagerDashboard({ userId, factories }) {
 
             {activeTab === 'reviews' && (
                 <div>
-                    <h3>Pending Driver Trips</h3>
+                    <h3>{t('manager_dashboard.reviews.pending_trips')}</h3>
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>Date</th><th>Driver</th><th>Factory</th><th>Qty</th><th>Action</th>
+                                <th>{t('manager_dashboard.reviews.table.date')}</th>
+                                <th>{t('manager_dashboard.reviews.table.driver')}</th>
+                                <th>{t('manager_dashboard.reviews.table.factory')}</th>
+                                <th>{t('manager_dashboard.reviews.table.qty')}</th>
+                                <th>{t('manager_dashboard.reviews.table.action')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,19 +125,27 @@ export function ManagerDashboard({ userId, factories }) {
                                     <td>{item.factory_name}</td>
                                     <td style={{ fontWeight: 600 }}>{item.quantity}</td>
                                     <td>
-                                        <button className="button small" onClick={() => handleApprove('trip', item.id)}>Approve</button>
+                                        <button className="button small" onClick={() => handleApprove('trip', item.id)}>
+                                            {t('manager_dashboard.reviews.approve')}
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
-                            {pendingItems.trips.length === 0 && <tr><td colSpan="5">No pending trips.</td></tr>}
+                            {pendingItems.trips.length === 0 && (
+                                <tr><td colSpan="5">{t('manager_dashboard.reviews.empty_trips')}</td></tr>
+                            )}
                         </tbody>
                     </table>
 
-                    <h3 style={{ marginTop: '24px' }}>Pending Clerk Reports</h3>
+                    <h3 style={{ marginTop: '24px' }}>{t('manager_dashboard.reviews.pending_reports')}</h3>
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>Date</th><th>Clerk</th><th>Factory</th><th>Qty</th><th>Action</th>
+                                <th>{t('manager_dashboard.reviews.table.date')}</th>
+                                <th>{t('manager_dashboard.reviews.table.clerk')}</th>
+                                <th>{t('manager_dashboard.reviews.table.factory')}</th>
+                                <th>{t('manager_dashboard.reviews.table.qty')}</th>
+                                <th>{t('manager_dashboard.reviews.table.action')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -144,11 +156,15 @@ export function ManagerDashboard({ userId, factories }) {
                                     <td>{item.factory_name}</td>
                                     <td style={{ fontWeight: 600 }}>{item.quantity}</td>
                                     <td>
-                                        <button className="button small" onClick={() => handleApprove('outbound', item.id)}>Approve</button>
+                                        <button className="button small" onClick={() => handleApprove('outbound', item.id)}>
+                                            {t('manager_dashboard.reviews.approve')}
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
-                            {pendingItems.outbound.length === 0 && <tr><td colSpan="5">No pending reports.</td></tr>}
+                            {pendingItems.outbound.length === 0 && (
+                                <tr><td colSpan="5">{t('manager_dashboard.reviews.empty_reports')}</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -157,19 +173,32 @@ export function ManagerDashboard({ userId, factories }) {
             {activeTab === 'platform' && (
                 <div>
                     <form onSubmit={handlePlatformSubmit} className="card" style={{ marginBottom: '24px' }}>
-                        <h3>Record Platform Return</h3>
+                        <h3>{t('manager_dashboard.platform.title')}</h3>
                         <div className="row">
-                            <input className="input" type="number" placeholder="Qty Received" value={platformForm.quantity} onChange={e => setPlatformForm({ ...platformForm, quantity: e.target.value })} />
-                            <input className="input" placeholder="Note (Optional)" value={platformForm.note} onChange={e => setPlatformForm({ ...platformForm, note: e.target.value })} />
-                            <button className="button" type="submit">Submit</button>
+                            <input
+                                className="input"
+                                type="number"
+                                placeholder={t('manager_dashboard.platform.qty_placeholder')}
+                                value={platformForm.quantity}
+                                onChange={e => setPlatformForm({ ...platformForm, quantity: e.target.value })}
+                            />
+                            <input
+                                className="input"
+                                placeholder={t('manager_dashboard.platform.note_placeholder')}
+                                value={platformForm.note}
+                                onChange={e => setPlatformForm({ ...platformForm, note: e.target.value })}
+                            />
+                            <button className="button" type="submit">{t('manager_dashboard.platform.submit')}</button>
                         </div>
                     </form>
 
-                    <h4>Recent History</h4>
+                    <h4>{t('manager_dashboard.platform.history_title')}</h4>
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>Date</th><th>Qty</th><th>Note</th>
+                                <th>{t('manager_dashboard.platform.table.date')}</th>
+                                <th>{t('manager_dashboard.platform.table.qty')}</th>
+                                <th>{t('manager_dashboard.platform.table.note')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -187,23 +216,28 @@ export function ManagerDashboard({ userId, factories }) {
 
             {activeTab === 'distribute' && (
                 <form onSubmit={handleRestockSubmit} className="card">
-                    <h3>Dispatch to Sub-Factory</h3>
+                    <h3>{t('manager_dashboard.distribute.title')}</h3>
                     <div className="row">
                         <div>
-                            <label className="label">Factory</label>
+                            <label className="label">{t('manager_dashboard.distribute.factory_label')}</label>
                             <select className="select" value={restockForm.factory_id} onChange={e => setRestockForm({ ...restockForm, factory_id: e.target.value })}>
-                                <option value="">Select Factory</option>
+                                <option value="">{t('manager_dashboard.distribute.select_factory')}</option>
                                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="label">Quantity</label>
+                            <label className="label">{t('manager_dashboard.distribute.quantity_label')}</label>
                             <input className="input" type="number" value={restockForm.quantity} onChange={e => setRestockForm({ ...restockForm, quantity: e.target.value })} />
                         </div>
                     </div>
                     <div className="row">
-                        <input className="input" placeholder="Note (Driver name, etc.)" value={restockForm.note} onChange={e => setRestockForm({ ...restockForm, note: e.target.value })} />
-                        <button className="button" type="submit">Dispatch Restock</button>
+                        <input
+                            className="input"
+                            placeholder={t('manager_dashboard.distribute.note_placeholder')}
+                            value={restockForm.note}
+                            onChange={e => setRestockForm({ ...restockForm, note: e.target.value })}
+                        />
+                        <button className="button" type="submit">{t('manager_dashboard.distribute.dispatch')}</button>
                     </div>
                 </form>
             )}

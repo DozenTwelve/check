@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from './useTranslation';
 
 export function useAuth() {
+    const { t } = useTranslation();
     const [userId, setUserId] = useState(() => localStorage.getItem('ledger_user_id') || '');
     const [user, setUser] = useState(null);
     const [notice, setNotice] = useState(null);
@@ -23,7 +25,7 @@ export function useAuth() {
             setNotice(null);
         } catch (err) {
             setUser(null);
-            setNotice({ type: 'error', text: 'User not found. Check the ID header.' });
+            setNotice({ type: 'error', text: t('notices.user_not_found') });
         }
     }
 

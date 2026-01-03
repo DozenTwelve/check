@@ -2,10 +2,12 @@ export const en = {
     app: {
         title: 'CheckingAll Ledger MVP',
         subtitle: 'Rolling ledger workspace for tracking reusable consumables. Sign in with a user id to simulate the driver, clerk, manager, and admin workflows.',
+        api_label: 'API',
         api_connected: 'Connected',
         api_offline: 'Offline',
         role: 'Role',
-        factory: 'Factory'
+        factory: 'Factory',
+        select_role_workspace: 'Select a role workspace above.'
     },
     roles: {
         driver: 'Driver',
@@ -106,20 +108,175 @@ export const en = {
         },
         empty: 'No report rows yet.'
     },
+    daily_outbound: {
+        title: 'Daily Outbound Report',
+        subtitle: 'Report the total number of boxes sent out from the factory today.',
+        total_quantity: 'Total Outbound Quantity',
+        quantity_placeholder: 'e.g. 500',
+        saving: 'Saving...',
+        update: 'Update Report',
+        submit: 'Submit Report',
+        saved_notice: 'Current saved total for {{date}} is {{quantity}} boxes.',
+        notice_success: 'Daily outbound report saved.',
+        notice_error: 'Failed to save report.'
+    },
+    trip_entry: {
+        title: 'Daily Trip Entry',
+        select_factory: 'Select Factory',
+        select_factory_placeholder: 'Select factory',
+        select_site: 'Select Destination Site',
+        select_site_placeholder: 'Select site',
+        loading_sites: 'Loading sites...',
+        quantity_label: 'Quantity Delivered (Boxes)',
+        quantity_placeholder: 'e.g. 50',
+        note_label_optional: 'Note (Optional)',
+        note_placeholder: 'e.g. Morning delivery',
+        submitting: 'Submitting...',
+        submit: 'Submit Trip',
+        recent_title: 'My Recent Trips',
+        table: {
+            date: 'Date',
+            factory: 'Factory',
+            site: 'Site',
+            qty: 'Qty',
+            status: 'Status'
+        },
+        empty: 'No trips found.',
+        notices: {
+            load_error: 'Failed to load trips',
+            submit_success: 'Trip submitted for approval',
+            submit_error: 'Submission failed'
+        }
+    },
+    restock_confirm: {
+        title: 'Incoming Restocks',
+        subtitle: 'Please confirm receipt of the following boxes:',
+        quantity: '{{quantity}} boxes',
+        from: 'from {{manager}} ({{date}})',
+        confirm_btn: 'Confirm Receipt'
+    },
+    manager_dashboard: {
+        tabs: {
+            approvals: 'Approvals',
+            platform: 'Hub Receipt (Platform)',
+            distribute: 'Distribution (Restock)'
+        },
+        reviews: {
+            pending_trips: 'Pending Driver Trips',
+            pending_reports: 'Pending Clerk Reports',
+            table: {
+                date: 'Date',
+                driver: 'Driver',
+                clerk: 'Clerk',
+                factory: 'Factory',
+                qty: 'Qty',
+                action: 'Action'
+            },
+            approve: 'Approve',
+            empty_trips: 'No pending trips.',
+            empty_reports: 'No pending reports.'
+        },
+        platform: {
+            title: 'Record Platform Return',
+            qty_placeholder: 'Qty Received',
+            note_placeholder: 'Note (Optional)',
+            submit: 'Submit',
+            history_title: 'Recent History',
+            table: {
+                date: 'Date',
+                qty: 'Qty',
+                note: 'Note'
+            }
+        },
+        distribute: {
+            title: 'Dispatch to Sub-Factory',
+            factory_label: 'Factory',
+            select_factory: 'Select Factory',
+            quantity_label: 'Quantity',
+            note_placeholder: 'Note (Driver name, etc.)',
+            dispatch: 'Dispatch Restock',
+            dispatched_notice: 'Restock dispatched!'
+        }
+    },
     admin: {
         create_factory: 'Create Factory',
         create_consumable: 'Create Consumable',
         create_user: 'Create User',
+        tabs: {
+            sites: 'Sites',
+            factories: 'Factories',
+            users: 'Users',
+            consumables: 'Consumables'
+        },
+        titles: {
+            view_site: 'View Site',
+            edit_site: 'Edit Site',
+            create_site: 'Create Site',
+            view_factory: 'View Factory',
+            edit_factory: 'Edit Factory',
+            create_factory: 'Create Factory',
+            edit_user: 'Edit User',
+            create_user: 'Create User',
+            edit_consumable: 'Edit Consumable',
+            create_consumable: 'Create Consumable'
+        },
+        permissions: {
+            sites_create: 'You do not have permission to create sites.',
+            factories_create: 'You do not have permission to create factories.'
+        },
+        labels: {
+            code: 'Code',
+            name: 'Name',
+            active: 'Active',
+            linked_factories: 'Linked Sub-Factories',
+            linked_sites: 'Linked Sites',
+            assigned_managers: 'Assigned Managers',
+            assigned_staff: 'Assigned Staff',
+            no_managers: 'No managers assigned',
+            no_staff: 'No staff assigned',
+            assign_site: 'Assign to Site',
+            assign_factory: 'Assign to Factory'
+        },
         placeholders: {
             code: 'Code',
             name: 'Name',
             unit: 'Unit',
             username: 'Username',
             display_name: 'Display Name',
-            no_factory: 'No Factory'
+            no_factory: 'No Factory',
+            password: 'Password',
+            new_password_optional: 'New Password (Optional)',
+            select_site: '-- Select Site --',
+            select_factory: '-- Select Factory --'
         },
         buttons: {
             create: 'Create'
+        },
+        actions: {
+            create: 'Create',
+            update: 'Update',
+            cancel: 'Cancel',
+            close: 'Close',
+            view: 'View',
+            edit: 'Edit',
+            delete: 'Delete'
+        },
+        status: {
+            inactive: 'Inactive'
+        },
+        confirm_delete: 'Are you sure? This action cannot be undone.',
+        notices: {
+            delete_success: 'Deleted successfully',
+            delete_error: 'Delete failed (Item might be in use)',
+            site_created: 'Site created',
+            site_updated: 'Site updated',
+            factory_created: 'Factory created',
+            factory_updated: 'Factory updated',
+            user_created: 'User created',
+            user_updated: 'User updated',
+            consumable_created: 'Consumable created',
+            consumable_updated: 'Consumable updated',
+            operation_failed: 'Operation failed'
         },
         roles: {
             driver: 'Driver',
@@ -127,6 +284,17 @@ export const en = {
             manager: 'Manager',
             admin: 'Admin'
         }
+    },
+    statuses: {
+        draft: 'Draft',
+        submitted: 'Submitted',
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        confirmed: 'Confirmed',
+        voided: 'Voided',
+        dispatched: 'Dispatched',
+        received: 'Received'
     },
     notices: {
         user_not_found: 'User not found. Check the ID header.',

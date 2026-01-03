@@ -4,6 +4,10 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export function Confirmations({ userId, dailyReturns, onRefresh, onNotice }) {
     const { t } = useTranslation();
+    const getStatusLabel = (status) => {
+        const label = t(`statuses.${status}`);
+        return label === `statuses.${status}` ? status : label;
+    };
 
     async function handleConfirm(id) {
         try {
@@ -35,7 +39,7 @@ export function Confirmations({ userId, dailyReturns, onRefresh, onNotice }) {
                             <td>{doc.id}</td>
                             <td>{doc.biz_date}</td>
                             <td>{doc.factory_id}</td>
-                            <td>{doc.status}</td>
+                            <td>{getStatusLabel(doc.status)}</td>
                             <td>{t(`daily_return.v_levels.${doc.v_level}`)}</td>
                             <td>
                                 {doc.status !== 'confirmed' && doc.status !== 'voided' && (

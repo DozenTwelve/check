@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from './useTranslation';
 
 export function useDailyReturns(user, userId, setNotice) {
+    const { t } = useTranslation();
     const [dailyReturns, setDailyReturns] = useState([]);
 
     useEffect(() => {
@@ -18,7 +20,7 @@ export function useDailyReturns(user, userId, setNotice) {
             setDailyReturns(data || []);
         } catch (err) {
             if (setNotice) {
-                setNotice({ type: 'error', text: 'Failed to load daily returns.' });
+                setNotice({ type: 'error', text: t('notices.daily_returns_error') });
             }
         }
     }

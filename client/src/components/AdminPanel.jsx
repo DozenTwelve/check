@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function AdminPanel({ user, userId, factories, consumables, onRefresh, onNotice }) {
+    const { t } = useTranslation();
+    const getRoleLabel = (role) => {
+        const label = t(`roles.${role}`);
+        return label === `roles.${role}` ? role : label;
+    };
     const [activeTab, setActiveTab] = useState('sites');
     const [sites, setSites] = useState([]);
     const [users, setUsers] = useState([]);
@@ -96,13 +102,13 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
     const handleDelete = async (id, endpoint, refresh) => {
         if (!isAdmin) return;
-        if (!confirm('Are you sure? This action cannot be undone.')) return;
+        if (!confirm(t('admin.confirm_delete'))) return;
         try {
             await apiFetch(`${endpoint}/${id}`, { method: 'DELETE', userId });
             refresh();
-            onNotice({ type: 'success', text: 'Deleted successfully' });
+            onNotice({ type: 'success', text: t('admin.notices.delete_success') });
         } catch (err) {
-            onNotice({ type: 'error', text: 'Delete failed (Item might be in use)' });
+            onNotice({ type: 'error', text: t('admin.notices.delete_error') });
         }
     };
 
@@ -122,8 +128,11 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             handleCancel();
             loadSites();
             onRefresh(); // Refresh factories too as links changed
-            onNotice({ type: 'success', text: isEdit ? 'Site updated' : 'Site created' });
-        } catch (err) { onNotice({ type: 'error', text: 'Operation failed' }); }
+            onNotice({
+                type: 'success',
+                text: isEdit ? t('admin.notices.site_updated') : t('admin.notices.site_created')
+            });
+        } catch (err) { onNotice({ type: 'error', text: t('admin.notices.operation_failed') }); }
     }
 
     async function handleFactorySubmit(e) {
@@ -139,8 +148,11 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             });
             handleCancel();
             onRefresh(); // Refresh parent factories list
-            onNotice({ type: 'success', text: isEdit ? 'Factory updated' : 'Factory created' });
-        } catch (err) { onNotice({ type: 'error', text: 'Operation failed' }); }
+            onNotice({
+                type: 'success',
+                text: isEdit ? t('admin.notices.factory_updated') : t('admin.notices.factory_created')
+            });
+        } catch (err) { onNotice({ type: 'error', text: t('admin.notices.operation_failed') }); }
     }
 
     async function handleUserSubmit(e) {
@@ -152,8 +164,11 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             await apiFetch(url, { method, body: userForm, userId });
             handleCancel();
             loadUsers();
-            onNotice({ type: 'success', text: isEdit ? 'User updated' : 'User created' });
-        } catch (err) { onNotice({ type: 'error', text: 'Operation failed' }); }
+            onNotice({
+                type: 'success',
+                text: isEdit ? t('admin.notices.user_updated') : t('admin.notices.user_created')
+            });
+        } catch (err) { onNotice({ type: 'error', text: t('admin.notices.operation_failed') }); }
     }
 
     async function handleConsumableSubmit(e) {
@@ -165,8 +180,11 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             await apiFetch(url, { method, body: consumableForm, userId });
             handleCancel();
             onRefresh();
-            onNotice({ type: 'success', text: isEdit ? 'Consumable updated' : 'Consumable created' });
-        } catch (err) { onNotice({ type: 'error', text: 'Operation failed' }); }
+            onNotice({
+                type: 'success',
+                text: isEdit ? t('admin.notices.consumable_updated') : t('admin.notices.consumable_created')
+            });
+        } catch (err) { onNotice({ type: 'error', text: t('admin.notices.operation_failed') }); }
     }
 
     // Helper for multi-select (Factories)
@@ -188,28 +206,65 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
     return (
         <div>
             <div className="tabs">
-                <button className={`tab ${activeTab === 'sites' ? 'active' : ''}`} onClick={() => setActiveTab('sites')}>Sites</button>
-                <button className={`tab ${activeTab === 'factories' ? 'active' : ''}`} onClick={() => setActiveTab('factories')}>Factories</button>
-                {isAdmin && <button className={`tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Users</button>}
-                {isAdmin && <button className={`tab ${activeTab === 'consumables' ? 'active' : ''}`} onClick={() => setActiveTab('consumables')}>Consumables</button>}
+                <button className={`tab ${activeTab === 'sites' ? 'active' : ''}`} onClick={() => setActiveTab('sites')}>
+                    {t('admin.tabs.sites')}
+                </button>
+                <button className={`tab ${activeTab === 'factories' ? 'active' : ''}`} onClick={() => setActiveTab('factories')}>
+                    {t('admin.tabs.factories')}
+                </button>
+                {isAdmin && (
+                    <button className={`tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+                        {t('admin.tabs.users')}
+                    </button>
+                )}
+                {isAdmin && (
+                    <button className={`tab ${activeTab === 'consumables' ? 'active' : ''}`} onClick={() => setActiveTab('consumables')}>
+                        {t('admin.tabs.consumables')}
+                    </button>
+                )}
             </div>
             <div className="divider"></div>
 
             {activeTab === 'sites' && (
                 <>
                     <form onSubmit={handleSiteSubmit} className="card" style={{ borderColor: editingSiteId ? 'var(--accent)' : '' }}>
-                        <h3>{isViewMode ? 'View Site' : (editingSiteId ? 'Edit Site' : 'Create Site')}</h3>
+                        <h3>
+                            {isViewMode
+                                ? t('admin.titles.view_site')
+                                : (editingSiteId ? t('admin.titles.edit_site') : t('admin.titles.create_site'))}
+                        </h3>
                         {(!editingSiteId && !isAdmin) ? (
-                            <div className="text-muted">You do not have permission to create sites.</div>
+                            <div className="text-muted">{t('admin.permissions.sites_create')}</div>
                         ) : (
                             <div className="stack">
                                 <div className="row">
-                                    <input className="input" placeholder="Code" value={siteForm.code} onChange={e => setSiteForm({ ...siteForm, code: e.target.value })} required disabled={isViewMode || !isAdmin} />
-                                    <input className="input" placeholder="Name" value={siteForm.name} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} required disabled={isViewMode || !isAdmin} />
-                                    <label className="row"><input type="checkbox" checked={siteForm.is_active} onChange={e => setSiteForm({ ...siteForm, is_active: e.target.checked })} disabled={isViewMode || !isAdmin} /> Active</label>
+                                    <input
+                                        className="input"
+                                        placeholder={t('admin.placeholders.code')}
+                                        value={siteForm.code}
+                                        onChange={e => setSiteForm({ ...siteForm, code: e.target.value })}
+                                        required
+                                        disabled={isViewMode || !isAdmin}
+                                    />
+                                    <input
+                                        className="input"
+                                        placeholder={t('admin.placeholders.name')}
+                                        value={siteForm.name}
+                                        onChange={e => setSiteForm({ ...siteForm, name: e.target.value })}
+                                        required
+                                        disabled={isViewMode || !isAdmin}
+                                    />
+                                    <label className="checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={siteForm.is_active}
+                                            onChange={e => setSiteForm({ ...siteForm, is_active: e.target.checked })}
+                                            disabled={isViewMode || !isAdmin}
+                                        /> {t('admin.labels.active')}
+                                    </label>
                                 </div>
 
-                                <label className="label">Linked Sub-Factories</label>
+                                <label className="label">{t('admin.labels.linked_factories')}</label>
                                 <div className="row" style={{ flexWrap: 'wrap', gap: '8px' }}>
                                     {factories.map(f => (
                                         <label key={f.id} className="pill" style={{
@@ -226,18 +281,26 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
                                 {editingSiteId && (
                                     <div>
-                                        <label className="label">Assigned Managers</label>
+                                        <label className="label">{t('admin.labels.assigned_managers')}</label>
                                         <div className="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
                                             {currentSiteManagers.length > 0 ? currentSiteManagers.map(u => (
                                                 <span key={u.id} className="tag">{u.display_name}</span>
-                                            )) : <span className="text-muted">No managers assigned</span>}
+                                            )) : <span className="text-muted">{t('admin.labels.no_managers')}</span>}
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="row">
-                                    {!isViewMode && isAdmin && <button className="button" type="submit">{editingSiteId ? 'Update' : 'Create'}</button>}
-                                    {editingSiteId && <button className="button ghost" onClick={handleCancel}>{isViewMode ? 'Close' : 'Cancel'}</button>}
+                                    {!isViewMode && isAdmin && (
+                                        <button className="button" type="submit">
+                                            {editingSiteId ? t('admin.actions.update') : t('admin.actions.create')}
+                                        </button>
+                                    )}
+                                    {editingSiteId && (
+                                        <button className="button ghost" onClick={handleCancel}>
+                                            {isViewMode ? t('admin.actions.close') : t('admin.actions.cancel')}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -245,11 +308,24 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                     <ul className="list-group">
                         {sites.map(s => (
                             <li key={s.id} className="list-item">
-                                <span><strong>{s.code}</strong> - {s.name} {!s.is_active && '(Inactive)'}</span>
+                                <span>
+                                    <strong>{s.code}</strong> - {s.name}
+                                    {!s.is_active && ` (${t('admin.status.inactive')})`}
+                                </span>
                                 <div className="actions">
-                                    <button className="button small ghost" onClick={() => handleEdit(s, 'site', true)}>View</button>
-                                    {isAdmin && <button className="button small ghost" onClick={() => handleEdit(s, 'site', false)}>Edit</button>}
-                                    {isAdmin && <button className="button small ghost danger" onClick={() => handleDelete(s.id, '/client-sites', loadSites)}>Delete</button>}
+                                    <button className="button small ghost" onClick={() => handleEdit(s, 'site', true)}>
+                                        {t('admin.actions.view')}
+                                    </button>
+                                    {isAdmin && (
+                                        <button className="button small ghost" onClick={() => handleEdit(s, 'site', false)}>
+                                            {t('admin.actions.edit')}
+                                        </button>
+                                    )}
+                                    {isAdmin && (
+                                        <button className="button small ghost danger" onClick={() => handleDelete(s.id, '/client-sites', loadSites)}>
+                                            {t('admin.actions.delete')}
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}
@@ -260,18 +336,43 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             {activeTab === 'factories' && (
                 <>
                     <form onSubmit={handleFactorySubmit} className="card" style={{ borderColor: editingFactoryId ? 'var(--accent)' : '' }}>
-                        <h3>{isViewMode ? 'View Factory' : (editingFactoryId ? 'Edit Factory' : 'Create Factory')}</h3>
+                        <h3>
+                            {isViewMode
+                                ? t('admin.titles.view_factory')
+                                : (editingFactoryId ? t('admin.titles.edit_factory') : t('admin.titles.create_factory'))}
+                        </h3>
                         {(!editingFactoryId && !isAdmin) ? (
-                            <div className="text-muted">You do not have permission to create factories.</div>
+                            <div className="text-muted">{t('admin.permissions.factories_create')}</div>
                         ) : (
                             <div className="stack">
                                 <div className="row">
-                                    <input className="input" placeholder="Code" value={factoryForm.code} onChange={e => setFactoryForm({ ...factoryForm, code: e.target.value })} required disabled={isViewMode || !isAdmin} />
-                                    <input className="input" placeholder="Name" value={factoryForm.name} onChange={e => setFactoryForm({ ...factoryForm, name: e.target.value })} required disabled={isViewMode || !isAdmin} />
-                                    <label className="row"><input type="checkbox" checked={factoryForm.is_active} onChange={e => setFactoryForm({ ...factoryForm, is_active: e.target.checked })} disabled={isViewMode || !isAdmin} /> Active</label>
+                                    <input
+                                        className="input"
+                                        placeholder={t('admin.placeholders.code')}
+                                        value={factoryForm.code}
+                                        onChange={e => setFactoryForm({ ...factoryForm, code: e.target.value })}
+                                        required
+                                        disabled={isViewMode || !isAdmin}
+                                    />
+                                    <input
+                                        className="input"
+                                        placeholder={t('admin.placeholders.name')}
+                                        value={factoryForm.name}
+                                        onChange={e => setFactoryForm({ ...factoryForm, name: e.target.value })}
+                                        required
+                                        disabled={isViewMode || !isAdmin}
+                                    />
+                                    <label className="checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={factoryForm.is_active}
+                                            onChange={e => setFactoryForm({ ...factoryForm, is_active: e.target.checked })}
+                                            disabled={isViewMode || !isAdmin}
+                                        /> {t('admin.labels.active')}
+                                    </label>
                                 </div>
 
-                                <label className="label">Linked Sites</label>
+                                <label className="label">{t('admin.labels.linked_sites')}</label>
                                 <div className="row" style={{ flexWrap: 'wrap', gap: '8px' }}>
                                     {sites.map(s => (
                                         <label key={s.id} className="pill" style={{
@@ -288,18 +389,26 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
                                 {editingFactoryId && (
                                     <div>
-                                        <label className="label">Assigned Staff</label>
+                                        <label className="label">{t('admin.labels.assigned_staff')}</label>
                                         <div className="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
                                             {currentFactoryStaff.length > 0 ? currentFactoryStaff.map(u => (
-                                                <span key={u.id} className="tag">{u.display_name} ({u.role})</span>
-                                            )) : <span className="text-muted">No staff assigned</span>}
+                                                <span key={u.id} className="tag">{u.display_name} ({getRoleLabel(u.role)})</span>
+                                            )) : <span className="text-muted">{t('admin.labels.no_staff')}</span>}
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="row">
-                                    {!isViewMode && isAdmin && <button className="button" type="submit">{editingFactoryId ? 'Update' : 'Create'}</button>}
-                                    {editingFactoryId && <button className="button ghost" onClick={handleCancel}>{isViewMode ? 'Close' : 'Cancel'}</button>}
+                                    {!isViewMode && isAdmin && (
+                                        <button className="button" type="submit">
+                                            {editingFactoryId ? t('admin.actions.update') : t('admin.actions.create')}
+                                        </button>
+                                    )}
+                                    {editingFactoryId && (
+                                        <button className="button ghost" onClick={handleCancel}>
+                                            {isViewMode ? t('admin.actions.close') : t('admin.actions.cancel')}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -309,9 +418,19 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                             <li key={f.id} className="list-item">
                                 <span><strong>{f.code}</strong> - {f.name}</span>
                                 <div className="actions">
-                                    <button className="button small ghost" onClick={() => handleEdit(f, 'factory', true)}>View</button>
-                                    {isAdmin && <button className="button small ghost" onClick={() => handleEdit(f, 'factory', false)}>Edit</button>}
-                                    {isAdmin && <button className="button small ghost danger" onClick={() => handleDelete(f.id, '/factories', onRefresh)}>Delete</button>}
+                                    <button className="button small ghost" onClick={() => handleEdit(f, 'factory', true)}>
+                                        {t('admin.actions.view')}
+                                    </button>
+                                    {isAdmin && (
+                                        <button className="button small ghost" onClick={() => handleEdit(f, 'factory', false)}>
+                                            {t('admin.actions.edit')}
+                                        </button>
+                                    )}
+                                    {isAdmin && (
+                                        <button className="button small ghost danger" onClick={() => handleDelete(f.id, '/factories', onRefresh)}>
+                                            {t('admin.actions.delete')}
+                                        </button>
+                                    )}
                                 </div>
                             </li>
                         ))}
@@ -322,28 +441,53 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             {activeTab === 'users' && (
                 <>
                     <form onSubmit={handleUserSubmit} className="card" style={{ borderColor: editingUserId ? 'var(--accent)' : '' }}>
-                        <h3>{editingUserId ? 'Edit User' : 'Create User'}</h3>
+                        <h3>{editingUserId ? t('admin.titles.edit_user') : t('admin.titles.create_user')}</h3>
                         <div className="stack">
                             <div className="row">
-                                <input className="input" placeholder="Username" value={userForm.username} onChange={e => setUserForm({ ...userForm, username: e.target.value })} required />
-                                <input className="input" placeholder="Display Name" value={userForm.display_name} onChange={e => setUserForm({ ...userForm, display_name: e.target.value })} required />
+                                <input
+                                    className="input"
+                                    placeholder={t('admin.placeholders.username')}
+                                    value={userForm.username}
+                                    onChange={e => setUserForm({ ...userForm, username: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    className="input"
+                                    placeholder={t('admin.placeholders.display_name')}
+                                    value={userForm.display_name}
+                                    onChange={e => setUserForm({ ...userForm, display_name: e.target.value })}
+                                    required
+                                />
                             </div>
                             <div className="row">
                                 <select className="select" value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
-                                    <option value="driver">Driver</option>
-                                    <option value="clerk">Clerk</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="driver">{t('roles.driver')}</option>
+                                    <option value="clerk">{t('roles.clerk')}</option>
+                                    <option value="manager">{t('roles.manager')}</option>
+                                    <option value="admin">{t('roles.admin')}</option>
                                 </select>
-                                <input className="input" type="password" placeholder={editingUserId ? "New Password (Optional)" : "Password"} value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} required={!editingUserId} />
-                                <label className="row"><input type="checkbox" checked={userForm.is_active} onChange={e => setUserForm({ ...userForm, is_active: e.target.checked })} /> Active</label>
+                                <input
+                                    className="input"
+                                    type="password"
+                                    placeholder={editingUserId ? t('admin.placeholders.new_password_optional') : t('admin.placeholders.password')}
+                                    value={userForm.password}
+                                    onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                                    required={!editingUserId}
+                                />
+                                <label className="checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={userForm.is_active}
+                                        onChange={e => setUserForm({ ...userForm, is_active: e.target.checked })}
+                                    /> {t('admin.labels.active')}
+                                </label>
                             </div>
 
                             {userForm.role === 'manager' && (
                                 <div>
-                                    <label className="label">Assign to Site</label>
+                                    <label className="label">{t('admin.labels.assign_site')}</label>
                                     <select className="select" value={userForm.site_id} onChange={e => setUserForm({ ...userForm, site_id: e.target.value })}>
-                                        <option value="">-- Select Site --</option>
+                                        <option value="">{t('admin.placeholders.select_site')}</option>
                                         {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                     </select>
                                 </div>
@@ -351,17 +495,21 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
                             {['driver', 'clerk'].includes(userForm.role) && (
                                 <div>
-                                    <label className="label">Assign to Factory</label>
+                                    <label className="label">{t('admin.labels.assign_factory')}</label>
                                     <select className="select" value={userForm.factory_id} onChange={e => setUserForm({ ...userForm, factory_id: e.target.value })}>
-                                        <option value="">-- Select Factory --</option>
+                                        <option value="">{t('admin.placeholders.select_factory')}</option>
                                         {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                     </select>
                                 </div>
                             )}
 
                             <div className="row">
-                                <button className="button" type="submit">{editingUserId ? 'Update' : 'Create'}</button>
-                                {editingUserId && <button className="button ghost" onClick={handleCancel}>Cancel</button>}
+                                <button className="button" type="submit">
+                                    {editingUserId ? t('admin.actions.update') : t('admin.actions.create')}
+                                </button>
+                                {editingUserId && (
+                                    <button className="button ghost" onClick={handleCancel}>{t('admin.actions.cancel')}</button>
+                                )}
                             </div>
                         </div>
                     </form>
@@ -369,12 +517,12 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                         {users.map(u => (
                             <li key={u.id} className="list-item">
                                 <span>
-                                    {u.display_name} ({u.username}) <span className="pill small">{u.role}</span>
-                                    {!u.is_active && <span className="pill small danger">Inactive</span>}
+                                    {u.display_name} ({u.username}) <span className="pill small">{getRoleLabel(u.role)}</span>
+                                    {!u.is_active && <span className="pill small danger">{t('admin.status.inactive')}</span>}
                                 </span>
                                 <div className="actions">
-                                    <button className="button small ghost" onClick={() => handleEdit(u, 'user')}>Edit</button>
-                                    <button className="button small ghost danger" onClick={() => handleDelete(u.id, '/users', loadUsers)}>Delete</button>
+                                    <button className="button small ghost" onClick={() => handleEdit(u, 'user')}>{t('admin.actions.edit')}</button>
+                                    <button className="button small ghost danger" onClick={() => handleDelete(u.id, '/users', loadUsers)}>{t('admin.actions.delete')}</button>
                                 </div>
                             </li>
                         ))}
@@ -385,13 +533,33 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             {activeTab === 'consumables' && (
                 <>
                     <form onSubmit={handleConsumableSubmit} className="card" style={{ borderColor: editingConsumableId ? 'var(--accent)' : '' }}>
-                        <h3>{editingConsumableId ? 'Edit Consumable' : 'Create Consumable'}</h3>
+                        <h3>{editingConsumableId ? t('admin.titles.edit_consumable') : t('admin.titles.create_consumable')}</h3>
                         <div className="row">
-                            <input className="input" placeholder="Code" value={consumableForm.code} onChange={e => setConsumableForm({ ...consumableForm, code: e.target.value })} required />
-                            <input className="input" placeholder="Name" value={consumableForm.name} onChange={e => setConsumableForm({ ...consumableForm, name: e.target.value })} required />
-                            <input className="input" placeholder="Unit" value={consumableForm.unit} onChange={e => setConsumableForm({ ...consumableForm, unit: e.target.value })} required />
-                            <button className="button" type="submit">{editingConsumableId ? 'Update' : 'Create'}</button>
-                            {editingConsumableId && <button className="button ghost" onClick={handleCancel}>Cancel</button>}
+                            <input
+                                className="input"
+                                placeholder={t('admin.placeholders.code')}
+                                value={consumableForm.code}
+                                onChange={e => setConsumableForm({ ...consumableForm, code: e.target.value })}
+                                required
+                            />
+                            <input
+                                className="input"
+                                placeholder={t('admin.placeholders.name')}
+                                value={consumableForm.name}
+                                onChange={e => setConsumableForm({ ...consumableForm, name: e.target.value })}
+                                required
+                            />
+                            <input
+                                className="input"
+                                placeholder={t('admin.placeholders.unit')}
+                                value={consumableForm.unit}
+                                onChange={e => setConsumableForm({ ...consumableForm, unit: e.target.value })}
+                                required
+                            />
+                            <button className="button" type="submit">
+                                {editingConsumableId ? t('admin.actions.update') : t('admin.actions.create')}
+                            </button>
+                            {editingConsumableId && <button className="button ghost" onClick={handleCancel}>{t('admin.actions.cancel')}</button>}
                         </div>
                     </form>
                     <ul className="list-group">
@@ -399,8 +567,8 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                             <li key={c.id} className="list-item">
                                 <span><strong>{c.code}</strong> - {c.name} ({c.unit})</span>
                                 <div className="actions">
-                                    <button className="button small ghost" onClick={() => handleEdit(c, 'consumable')}>Edit</button>
-                                    <button className="button small ghost danger" onClick={() => handleDelete(c.id, '/consumables', onRefresh)}>Delete</button>
+                                    <button className="button small ghost" onClick={() => handleEdit(c, 'consumable')}>{t('admin.actions.edit')}</button>
+                                    <button className="button small ghost danger" onClick={() => handleDelete(c.id, '/consumables', onRefresh)}>{t('admin.actions.delete')}</button>
                                 </div>
                             </li>
                         ))}
