@@ -32,7 +32,7 @@ services:
     #     condition: service_healthy
     ports:
       - "7787:7787"
-    command: sh -c "npm install && npm run migrate && npm start"
+    command: sh -c "npm install && npm start"
     restart: unless-stopped
 
   client:
