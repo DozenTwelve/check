@@ -13,6 +13,8 @@ import { MasterDataSummary } from './components/MasterDataSummary';
 import { DailyReturnForm } from './components/DailyReturnForm';
 import { TripEntryForm } from './components/TripEntryForm';
 import { DailyOutboundForm } from './components/DailyOutboundForm';
+import { ManagerDashboard } from './components/ManagerDashboard';
+import { RestockConfirm } from './components/RestockConfirm';
 import { Confirmations } from './components/Confirmations';
 import { Adjustments } from './components/Adjustments';
 import { Reports } from './components/Reports';
@@ -134,37 +136,34 @@ function AppContent() {
           <div className="divider"></div>
 
           {activeSection === 'daily' && user.role === 'driver' && (
-            <TripEntryForm
-              user={user}
-              userId={userId}
-              factories={factories}
-              onNotice={setNotice}
-            />
+            <>
+              <RestockConfirm userId={userId} />
+              <TripEntryForm
+                user={user}
+                userId={userId}
+                factories={factories}
+                onNotice={setNotice}
+              />
+            </>
           )}
           {activeSection === 'daily' && user.role === 'clerk' && (
-            <DailyOutboundForm
-              user={user}
-              userId={userId}
-              factories={factories}
-              onNotice={setNotice}
-            />
+            <>
+              <RestockConfirm userId={userId} />
+              <DailyOutboundForm
+                user={user}
+                userId={userId}
+                factories={factories}
+                onNotice={setNotice}
+              />
+            </>
           )}
           {activeSection === 'daily' && !['driver', 'clerk'].includes(user.role) && (
-            <DailyReturnForm
-              user={user}
-              userId={userId}
-              factories={factories}
-              consumables={consumables}
-              onCreated={loadDailyReturns}
-              onNotice={setNotice}
-            />
+            <div className="notice">Select a role workspace above.</div>
           )}
           {activeSection === 'confirm' && (
-            <Confirmations
+            <ManagerDashboard
               userId={userId}
-              dailyReturns={dailyReturns}
-              onRefresh={loadDailyReturns}
-              onNotice={setNotice}
+              factories={factories}
             />
           )}
           {activeSection === 'adjust' && (

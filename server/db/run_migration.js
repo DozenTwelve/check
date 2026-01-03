@@ -5,7 +5,7 @@ const fs = require('fs');
 
 async function runMigration() {
     try {
-        const sqlPath = path.join(__dirname, '2_phase1_2_schema.sql');
+        const sqlPath = path.join(__dirname, '5_site_mn_hierarchy.sql');
         const sql = fs.readFileSync(sqlPath, 'utf8');
 
         console.log('Running migration...');

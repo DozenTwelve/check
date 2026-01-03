@@ -30,7 +30,23 @@ exports.createConsumable = async (req, res, next) => {
 };
 
 // Factories
-exports.listFactories = async (req, res, next) => {
+exports.getFactorySites = async (req, res) => {
+    const { factory_id } = req.params;
+    try {
+        const result = await pool.query(`
+      SELECT s.id, s.name, s.code
+      FROM client_sites s
+      JOIN site_factories sf ON s.id = sf.site_id
+      WHERE sf.factory_id = $1
+    `, [factory_id]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch sites' });
+    }
+};
+
+exports.getFactories = async (req, res, next) => {
     try {
         const result = await pool.query(
             'SELECT id, code, name, is_active FROM factories ORDER BY code'
@@ -41,20 +57,45 @@ exports.listFactories = async (req, res, next) => {
     }
 };
 
-exports.createFactory = async (req, res, next) => {
-    const { code, name, is_active } = req.body;
+exports.createFactory = async (req, res) => {
+    const { code, name, site_ids } = req.body; // site_ids is array of integers
 
+    if (!code || !name) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            `INSERT INTO factories (code, name, is_active)
-       VALUES ($1, $2, COALESCE($3, true))
-       RETURNING id, code, name, is_active`,
-            [code, name, is_active]
-        );
+        await client.query('BEGIN');
 
-        res.status(201).json(result.rows[0]);
+        // 1. Create Factory
+        const resFactory = await client.query(
+            'INSERT INTO factories (code, name) VALUES ($1, $2) RETURNING *',
+            [code, name]
+        );
+        const factoryId = resFactory.rows[0].id;
+
+        // 2. Link to Sites (if any)
+        if (site_ids && Array.isArray(site_ids) && site_ids.length > 0) {
+            for (const siteId of site_ids) {
+                await client.query(
+                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2)',
+                    [siteId, factoryId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json(resFactory.rows[0]);
     } catch (err) {
-        next(err);
+        await client.query('ROLLBACK');
+        console.error(err);
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'Factory code already exists' });
+        }
+        res.status(500).json({ error: 'Failed to create factory' });
+    } finally {
+        client.release();
     }
 };
 

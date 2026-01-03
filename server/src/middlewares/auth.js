@@ -10,7 +10,7 @@ async function requireUser(req, res, next) {
 
   try {
     const result = await pool.query(
-      'SELECT id, role, username, display_name, factory_id FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, role, username, display_name, factory_id, site_id FROM users WHERE id = $1 AND is_active = true',
       [userId]
     );
 

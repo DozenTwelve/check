@@ -3,7 +3,7 @@ const { pool } = require('../config/db');
 exports.listUsers = async (req, res, next) => {
     try {
         const result = await pool.query(
-            'SELECT id, role, username, display_name, factory_id, is_active FROM users ORDER BY id'
+            'SELECT id, role, username, display_name, factory_id, site_id, is_active FROM users ORDER BY username'
         );
         res.json(result.rows);
     } catch (err) {
@@ -11,44 +11,29 @@ exports.listUsers = async (req, res, next) => {
     }
 };
 
-exports.createUser = async (req, res, next) => {
-    const { role, username, display_name, factory_id } = req.body;
+exports.createUser = async (req, res) => {
+    const { username, display_name, role, factory_id, site_id, password } = req.body;
+
+    if (!username || !display_name || !role || !password) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Basic validation: Managers need site, Drivers/Clerks need factory
+    // We won't strict enforce it in DB (cols are nullable) but we should in logic
 
     try {
-        const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM users');
-        const hasUsers = countResult.rows[0].count > 0;
-
-        if (hasUsers) {
-            const header = req.get('x-user-id');
-            const userId = header ? Number.parseInt(header, 10) : NaN;
-
-            if (!Number.isInteger(userId)) {
-                return res.status(401).json({ error: 'missing_or_invalid_user_id' });
-            }
-
-            const userResult = await pool.query(
-                'SELECT id, role FROM users WHERE id = $1 AND is_active = true',
-                [userId]
-            );
-
-            if (userResult.rowCount === 0) {
-                return res.status(401).json({ error: 'user_not_found' });
-            }
-
-            if (userResult.rows[0].role !== 'admin') {
-                return res.status(403).json({ error: 'forbidden' });
-            }
-        }
-
-        const insertResult = await pool.query(
-            `INSERT INTO users (role, username, display_name, factory_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, role, username, display_name, factory_id`,
-            [role, username, display_name, factory_id ?? null]
+        const result = await pool.query(
+            `INSERT INTO users (username, display_name, role, factory_id, site_id, password_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, username, role`,
+            [username, display_name, role, factory_id || null, site_id || null, password] // plaintext for MVP
         );
-
-        res.status(201).json(insertResult.rows[0]);
+        res.status(201).json(result.rows[0]);
     } catch (err) {
-        next(err);
+        console.error(err);
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'Username already exists' });
+        }
+        res.status(500).json({ error: 'Failed to create user' });
     }
 };

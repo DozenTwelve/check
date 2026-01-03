@@ -2,119 +2,152 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
 
-function formatDateInput(date = new Date()) {
-    return date.toISOString().slice(0, 10);
-}
-
 export function TripEntryForm({ user, userId, factories, onNotice }) {
     const { t } = useTranslation();
-    const [bizDate, setBizDate] = useState(formatDateInput());
-    const [factoryId, setFactoryId] = useState(user?.factory_id ?? '');
-    const [quantity, setQuantity] = useState('');
-    const [note, setNote] = useState('');
+    const [selectedFactory, setSelectedFactory] = useState(user?.factory_id || '');
+    const [factorySites, setFactorySites] = useState([]);
+    const [selectedSite, setSelectedSite] = useState('');
     const [trips, setTrips] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    // Form inputs
+    const [quantity, setQuantity] = useState('');
+    const [note, setNote] = useState('');
+
+    // 1) Load recent trips on mount
     useEffect(() => {
-        loadTrips();
+        loadMyTrips();
     }, [userId]);
 
-    async function loadTrips() {
+    // 2) When factory changes, fetch allowed sites
+    useEffect(() => {
+        setSelectedSite('');
+        setFactorySites([]);
+        if (selectedFactory) {
+            apiFetch(`/factories/${selectedFactory}/sites`, { userId })
+                .then(sites => {
+                    setFactorySites(sites || []);
+                    if (sites && sites.length === 1) {
+                        setSelectedSite(sites[0].id);
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [selectedFactory]);
+
+    async function loadMyTrips() {
+        setLoading(true);
         try {
             const data = await apiFetch('/trips', { userId });
             setTrips(data || []);
         } catch (err) {
             console.error(err);
+            if (onNotice) onNotice({ type: 'error', text: 'Failed to load trips' });
+        } finally {
+            setLoading(false);
         }
     }
 
-    async function handleSubmit(event) {
-        event.preventDefault();
-        setSubmitting(true);
-        onNotice(null);
+    async function handleSubmit(e) {
+        e.preventDefault();
+        if (!selectedFactory || !quantity || !selectedSite) return;
 
+        setSubmitting(true);
         try {
             await apiFetch('/trips', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: {
-                    biz_date: bizDate,
-                    factory_id: Number(factoryId),
-                    quantity: Number(quantity),
-                    note: note || null
+                    biz_date: new Date().toISOString().slice(0, 10),
+                    factory_id: selectedFactory,
+                    site_id: selectedSite,
+                    quantity: parseInt(quantity, 10),
+                    note
                 },
                 userId
             });
 
-            onNotice({ type: 'success', text: t('notices.daily_return_success') }); // Reuse success message
+            if (onNotice) onNotice({ type: 'success', text: 'Trip submitted for approval' });
             setQuantity('');
             setNote('');
-            loadTrips();
+            loadMyTrips(); // Refresh list
         } catch (err) {
-            onNotice({ type: 'error', text: t('notices.daily_return_submit_error') });
+            console.error(err);
+            if (onNotice) onNotice({ type: 'error', text: 'Submission failed' });
         } finally {
             setSubmitting(false);
         }
     }
 
     return (
-        <div>
-            <form onSubmit={handleSubmit}>
-                <h3>Submit Trip Return</h3>
-                <div className="row">
+        <div className="card">
+            <h2 className="title">Daily Trip Entry</h2>
+
+            <div className="stack">
+                <label className="label">Select Factory</label>
+                <select
+                    className="select"
+                    value={selectedFactory}
+                    onChange={(e) => setSelectedFactory(e.target.value)}
+                    disabled={!!user?.factory_id}
+                >
+                    <option value="">-- Choose Factory --</option>
+                    {factories.map((f) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                </select>
+
+                {/* Site Selector (Only if factory is selected) */}
+                {selectedFactory && (
                     <div>
-                        <label className="label">{t('daily_return.form.biz_date')}</label>
-                        <input
-                            className="input"
-                            type="date"
-                            value={bizDate}
-                            onChange={(event) => setBizDate(event.target.value)}
-                        />
+                        <label className="label" style={{ marginTop: '0.5rem' }}>Select Destination Site</label>
+                        {factorySites.length === 0 ? (
+                            <div className="text-sm text-gray client-site-loader">Loading sites...</div>
+                        ) : (
+                            <select
+                                className="select"
+                                value={selectedSite}
+                                onChange={(e) => setSelectedSite(e.target.value)}
+                            >
+                                <option value="">-- Choose Site --</option>
+                                {factorySites.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        )}
                     </div>
-                    <div>
-                        <label className="label">{t('daily_return.form.factory')}</label>
-                        <select
-                            className="select"
-                            value={factoryId}
-                            onChange={(event) => setFactoryId(event.target.value)}
-                            disabled={user?.factory_id}
-                        >
-                            <option value="">{t('daily_return.form.select_factory')}</option>
-                            {factories.map((factory) => (
-                                <option key={factory.id} value={factory.id}>
-                                    {factory.code} - {factory.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="label">{t('daily_return.form.declared_qty')}</label>
-                        <input
-                            className="input"
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(event) => setQuantity(event.target.value)}
-                            placeholder="Qty"
-                        />
-                    </div>
-                </div>
-                <div className="row">
-                    <div style={{ flex: '2 1 300px' }}>
-                        <label className="label">{t('daily_return.form.note')}</label>
-                        <input
-                            className="input"
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="Optional trip details..."
-                        />
-                    </div>
-                    <div style={{ alignSelf: 'flex-end' }}>
-                        <button className="button" type="submit" disabled={submitting}>
-                            {submitting ? 'Submitting...' : 'Submit Trip'}
-                        </button>
-                    </div>
-                </div>
-            </form>
+                )}
+
+                <label className="label" style={{ marginTop: '0.5rem' }}>Quantity Delivered (Boxes)</label>
+                <input
+                    className="input"
+                    type="number"
+                    placeholder="e.g. 50"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                />
+
+                <label className="label" style={{ marginTop: '0.5rem' }}>Note (Optional)</label>
+                <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. Morning delivery"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                />
+
+                <button
+                    className="button"
+                    style={{ marginTop: '1rem' }}
+                    disabled={!selectedFactory || !quantity || !selectedSite || submitting}
+                    onClick={handleSubmit}
+                >
+                    {submitting ? 'Submitting...' : 'Submit Trip'}
+                </button>
+            </div>
 
             <div className="divider"></div>
 
@@ -124,26 +157,22 @@ export function TripEntryForm({ user, userId, factories, onNotice }) {
                     <tr>
                         <th>Date</th>
                         <th>Factory</th>
+                        <th>Site</th>
                         <th>Qty</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {trips.map((trip) => (
-                        <tr key={trip.id}>
-                            <td>{trip.biz_date.slice(0, 10)}</td>
-                            <td>{trip.factory_name}</td>
-                            <td style={{ fontWeight: 600 }}>{trip.quantity}</td>
-                            <td>
-                                <span className={`tag ${trip.status === 'approved' ? 'success' : ''}`}>
-                                    {trip.status}
-                                </span>
-                            </td>
+                    {trips.map(t => (
+                        <tr key={t.id}>
+                            <td>{t.biz_date.slice(0, 10)}</td>
+                            <td>{t.factory_name}</td>
+                            <td>{t.site_id /* In future, join site name in query */}</td>
+                            <td>{t.quantity}</td>
+                            <td>{t.status}</td>
                         </tr>
                     ))}
-                    {trips.length === 0 && (
-                        <tr><td colSpan="4">No trips recorded.</td></tr>
-                    )}
+                    {trips.length === 0 && <tr><td colSpan="5">No trips found.</td></tr>}
                 </tbody>
             </table>
         </div>

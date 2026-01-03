@@ -9,7 +9,8 @@ router.get('/consumables', requireUser, masterDataController.listConsumables);
 router.post('/consumables', requireUser, requireRole(['admin']), masterDataController.createConsumable);
 
 // Factories
-router.get('/factories', requireUser, masterDataController.listFactories);
+router.get('/factories', requireUser, masterDataController.getFactories);
+router.get('/factories/:factory_id/sites', requireUser, masterDataController.getFactorySites);
 router.post('/factories', requireUser, requireRole(['admin']), masterDataController.createFactory);
 
 // Client Sites

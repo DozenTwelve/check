@@ -23,18 +23,18 @@ exports.listMyTrips = async (req, res) => {
 
 exports.createTrip = async (req, res) => {
     const userId = req.user.id;
-    const { biz_date, factory_id, quantity, note } = req.body;
+    const { biz_date, factory_id, site_id, quantity, note } = req.body;
 
-    if (!biz_date || !factory_id || !quantity) {
+    if (!biz_date || !factory_id || !quantity || !site_id) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     try {
         const result = await pool.query(
-            `INSERT INTO return_trips (biz_date, factory_id, driver_id, quantity, note)
-       VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO return_trips (biz_date, factory_id, site_id, driver_id, quantity, note)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-            [biz_date, factory_id, userId, quantity, note]
+            [biz_date, factory_id, site_id, userId, quantity, note]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
