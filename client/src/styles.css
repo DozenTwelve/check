@@ -273,6 +273,7 @@ body::before {
     flex-direction: column;
   }
 }
+
 /* Widget Styles */
 .card-header {
   display: flex;
@@ -324,4 +325,40 @@ body::before {
   font-size: 0.8rem;
   color: var(--muted);
   margin-top: 4px;
+}
+
+/* Admin List Styles */
+.list-group {
+  list-style: none;
+  padding: 0;
+  margin-top: 24px;
+}
+
+.list-item {
+  background: white;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pill.small {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+}
+
+.button.danger {
+  color: #ef4444;
+}
+
+.button.danger:hover {
+  background: #fee2e2;
 }
