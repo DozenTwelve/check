@@ -24,8 +24,8 @@ services:
     volumes:
       - ./server:/app
     environment:
-      DATABASE_URL: postgres://checkingall:checkingall@db:5432/checkingall
-      JWT_SECRET: change_me
+      DATABASE_URL: postgres://casaos:casaos@192.168.31.160:5432/checkingall
+      JWT_SECRET: 235eec9bb9ecdb49a6132f5c3cb6f1d6562c9a66f9471312c826562543416f68
       NODE_ENV: production
     depends_on:
       db:
