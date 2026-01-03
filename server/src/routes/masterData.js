@@ -13,12 +13,15 @@ router.delete('/consumables/:id', requireUser, requireRole(['admin']), masterDat
 // Factories
 router.get('/factories', requireUser, masterDataController.getFactories);
 router.get('/factories/:factory_id/sites', requireUser, masterDataController.getFactorySites);
+router.get('/factories/:id/staff', requireUser, masterDataController.getFactoryStaff);
 router.post('/factories', requireUser, requireRole(['admin']), masterDataController.createFactory);
 router.put('/factories/:id', requireUser, requireRole(['admin']), masterDataController.updateFactory);
 router.delete('/factories/:id', requireUser, requireRole(['admin']), masterDataController.deleteFactory);
 
 // Client Sites
 router.get('/client-sites', requireUser, masterDataController.listClientSites);
+router.get('/client-sites/:site_id/factories', requireUser, masterDataController.getSiteFactories);
+router.get('/client-sites/:id/managers', requireUser, masterDataController.getSiteManagers);
 router.post('/client-sites', requireUser, requireRole(['admin']), masterDataController.createClientSite);
 router.put('/client-sites/:id', requireUser, requireRole(['admin']), masterDataController.updateClientSite);
 router.delete('/client-sites/:id', requireUser, requireRole(['admin']), masterDataController.deleteClientSite);

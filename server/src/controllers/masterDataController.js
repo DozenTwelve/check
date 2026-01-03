@@ -73,14 +73,33 @@ exports.getFactorySites = async (req, res) => {
     }
 };
 
-exports.getFactories = async (req, res, next) => {
+exports.getFactoryStaff = async (req, res) => {
+    const { id } = req.params;
     try {
         const result = await pool.query(
-            'SELECT id, code, name, is_active FROM factories ORDER BY code'
+            "SELECT id, username, display_name, role FROM users WHERE factory_id = $1 AND role IN ('driver', 'clerk') ORDER BY role, display_name",
+            [id]
         );
         res.json(result.rows);
     } catch (err) {
-        next(err);
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch staff' });
+    }
+};
+
+// ...
+
+exports.getSiteManagers = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            "SELECT id, username, display_name, role FROM users WHERE site_id = $1 AND role = 'manager' ORDER BY display_name",
+            [id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch managers' });
     }
 };
 
@@ -202,35 +221,91 @@ exports.listClientSites = async (req, res, next) => {
     }
 };
 
-exports.createClientSite = async (req, res, next) => {
-    const { code, name, is_active } = req.body;
-
+exports.getSiteFactories = async (req, res) => {
+    const { site_id } = req.params;
     try {
-        const result = await pool.query(
+        const result = await pool.query(`
+      SELECT f.id, f.name, f.code
+      FROM factories f
+      JOIN site_factories sf ON f.id = sf.factory_id
+      WHERE sf.site_id = $1
+    `, [site_id]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch factories' });
+    }
+};
+
+exports.createClientSite = async (req, res, next) => {
+    const { code, name, is_active, factory_ids } = req.body;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const result = await client.query(
             `INSERT INTO client_sites (code, name, is_active)
        VALUES ($1, $2, COALESCE($3, true))
        RETURNING id, code, name, is_active`,
             [code, name, is_active]
         );
+        const siteId = result.rows[0].id;
 
+        if (factory_ids && Array.isArray(factory_ids)) {
+            for (const factoryId of factory_ids) {
+                await client.query(
+                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2)',
+                    [siteId, factoryId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        await client.query('ROLLBACK');
         next(err);
+    } finally {
+        client.release();
     }
 };
 
 exports.updateClientSite = async (req, res, next) => {
     const { id } = req.params;
-    const { code, name, is_active } = req.body;
+    const { code, name, is_active, factory_ids } = req.body;
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+        const result = await client.query(
             `UPDATE client_sites SET code = $1, name = $2, is_active = $3, updated_at = now() 
        WHERE id = $4 RETURNING *`,
             [code, name, is_active, id]
         );
-        if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+        if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not found' });
+        }
+
+        // Update factories: Wipe and Rewrite
+        await client.query('DELETE FROM site_factories WHERE site_id = $1', [id]);
+        if (factory_ids && Array.isArray(factory_ids)) {
+            for (const factoryId of factory_ids) {
+                await client.query(
+                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2)',
+                    [id, factoryId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
         res.json(result.rows[0]);
-    } catch (err) { next(err); }
+    } catch (err) {
+        await client.query('ROLLBACK');
+        next(err);
+    } finally {
+        client.release();
+    }
 };
 
 exports.deleteClientSite = async (req, res, next) => {

@@ -18,12 +18,30 @@ exports.createUser = async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Enforce Role Logic
+    let finalFactoryId = factory_id;
+    let finalSiteId = site_id;
+
+    if (role === 'manager') {
+        finalFactoryId = null; // Managers cannot belong to a factory
+    } else if (['driver', 'clerk'].includes(role)) {
+        finalSiteId = null; // Drivers/Clerks cannot belong to a site
+    } else if (role === 'admin') {
+        finalFactoryId = null;
+        finalSiteId = null;
+    }
+
     try {
+        let passwordHash = null;
+        if (password) {
+            passwordHash = await bcrypt.hash(password, 10);
+        }
+
         const result = await pool.query(
             `INSERT INTO users (username, display_name, role, factory_id, site_id, password_hash)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, username, role`,
-            [username, display_name, role, factory_id || null, site_id || null, password] // plaintext for MVP
+       RETURNING id, username, display_name, role, factory_id, site_id, is_active`,
+            [username, display_name, role, finalFactoryId, finalSiteId, passwordHash]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -39,24 +57,44 @@ exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { username, display_name, role, factory_id, site_id, password, is_active } = req.body;
 
-    try {
-        let query = `UPDATE users SET username = $1, display_name = $2, role = $3, factory_id = $4, site_id = $5, is_active = $6, updated_at = now()`;
-        const params = [username, display_name, role, factory_id || null, site_id || null, is_active];
+    // Enforce Role Logic
+    let finalFactoryId = factory_id;
+    let finalSiteId = site_id;
 
-        if (password) {
-            query += `, password_hash = $${params.length + 1}`;
-            params.push(password);
+    if (role === 'manager') {
+        finalFactoryId = null;
+    } else if (['driver', 'clerk'].includes(role)) {
+        finalSiteId = null;
+    } else if (role === 'admin') {
+        finalFactoryId = null;
+        finalSiteId = null;
+    }
+
+    try {
+        let passwordHash = null;
+        if (password && password.trim().length > 0) {
+            passwordHash = await bcrypt.hash(password, 10);
         }
 
-        query += ` WHERE id = $${params.length + 1} RETURNING id, username, role`;
+        // Dynamic query building to handle optional password update
+        let query = `UPDATE users SET username = $1, display_name = $2, role = $3, factory_id = $4, site_id = $5, is_active = $6`;
+        const params = [username, display_name, role, finalFactoryId, finalSiteId, is_active];
+
+        if (passwordHash) {
+            query += `, password_hash = $7`;
+            params.push(passwordHash);
+        }
+
+        query += `, updated_at = now() WHERE id = $${params.length + 1} RETURNING id, username, display_name, role, factory_id, site_id, is_active`;
         params.push(id);
 
         const result = await pool.query(query, params);
+
         if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
         res.json(result.rows[0]);
     } catch (err) {
         console.error(err);
-        if (err.code === '23505') return res.status(409).json({ error: 'Username exists' });
+        if (err.code === '23505') return res.status(409).json({ error: 'Username already exists' });
         res.status(500).json({ error: 'Update failed' });
     }
 };

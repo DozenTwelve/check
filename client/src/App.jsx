@@ -36,7 +36,7 @@ function AppContent() {
       { key: 'confirm', label: t('nav.confirmations'), roles: ['manager'] },
       { key: 'adjust', label: t('nav.adjustments'), roles: ['clerk', 'manager'] },
       { key: 'report', label: t('nav.reports'), roles: ['manager', 'admin'] },
-      { key: 'admin', label: t('nav.master_data'), roles: ['admin'] }
+      { key: 'admin', label: t('nav.master_data'), roles: ['admin', 'manager'] }
     ],
     [t]
   );
@@ -185,6 +185,7 @@ function AppContent() {
           )}
           {activeSection === 'admin' && (
             <AdminPanel
+              user={user}
               userId={userId}
               factories={factories}
               consumables={consumables}
