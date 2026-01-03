@@ -1,13 +1,46 @@
 export const en = {
     app: {
         title: 'CheckingAll Ledger MVP',
-        subtitle: 'Rolling ledger workspace for tracking reusable consumables. Sign in with a user id to simulate the driver, clerk, manager, and admin workflows.',
+        subtitle: 'Rolling ledger workspace for tracking reusable consumables. Sign in to access your role workflow.',
         api_label: 'API',
         api_connected: 'Connected',
         api_offline: 'Offline',
         role: 'Role',
         factory: 'Factory',
         select_role_workspace: 'Select a role workspace above.'
+    },
+    common: {
+        logout: 'Log Out',
+        signed_in_as: 'Signed in as'
+    },
+    login: {
+        title: 'Sign In',
+        subtitle: 'Enter your credentials to continue.',
+        username: 'Username',
+        password: 'Password',
+        username_placeholder: 'Enter username',
+        password_placeholder: 'Enter password',
+        submit: 'Sign In',
+        submitting: 'Signing in...',
+        helper: 'Default admin login: admin / admin.',
+        error: 'Invalid username or password.'
+    },
+    ops: {
+        subtitle: {
+            default: 'Choose an action to continue.',
+            driver: 'Record daily trips and confirm inbound restocks.',
+            clerk: 'Record daily outbound totals and confirm inbound restocks.',
+            manager: 'Review approvals, confirm returns, and run reports.'
+        },
+        manager: {
+            title: 'Manager Operations',
+            tabs: {
+                approvals: 'Approvals',
+                confirmations: 'Confirmations',
+                adjustments: 'Adjustments',
+                reports: 'Reports'
+            }
+        }
     },
     roles: {
         driver: 'Driver',

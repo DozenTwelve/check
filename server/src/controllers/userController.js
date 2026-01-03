@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const bcrypt = require('bcryptjs');
 
 exports.listUsers = async (req, res, next) => {
     try {

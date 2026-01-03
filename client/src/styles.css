@@ -72,6 +72,11 @@ body::before {
   margin: 0;
 }
 
+.text-muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .status-bar {
   display: flex;
   flex-wrap: wrap;
@@ -246,6 +251,32 @@ body::before {
 .notice.error {
   border-left-color: #b42318;
   background: rgba(180, 35, 24, 0.1);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.auth-card {
+  max-width: 520px;
+  width: 100%;
+}
+
+.auth-title {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  margin-bottom: 6px;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
 }
 
 .table {

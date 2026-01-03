@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function SessionControl({ userId, setUserId, loadUser, user, logout, notice }) {
+export function SessionControl({ userIdInput, setUserIdInput, loadUser, user, logout, notice }) {
     const { t } = useTranslation();
 
     return (
@@ -13,13 +13,13 @@ export function SessionControl({ userId, setUserId, loadUser, user, logout, noti
                     id="userId"
                     className="input"
                     placeholder={t('components.session.placeholder')}
-                    value={userId}
-                    onChange={(event) => setUserId(event.target.value)}
+                    value={userIdInput}
+                    onChange={(event) => setUserIdInput(event.target.value)}
                 />
                 <button
                     className="button"
                     type="button"
-                    onClick={() => loadUser(userId)}
+                    onClick={() => loadUser(userIdInput)}
                 >
                     {t('components.session.load_user')}
                 </button>

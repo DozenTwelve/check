@@ -1,13 +1,46 @@
 export const zh = {
     app: {
         title: 'CheckingAll 循环物资台账',
-        subtitle: '用于可重用耗材（周转箱）的跟踪工作台。使用用户 ID 登录以模拟司机、文员、经理和管理员的工作流程。',
+        subtitle: '用于可重用耗材（周转箱）的跟踪工作台。登录后进入对应角色的工作流程。',
         api_label: 'API',
         api_connected: '已连接',
         api_offline: '离线',
         role: '角色',
         factory: '分厂',
         select_role_workspace: '请选择上方的角色工作区。'
+    },
+    common: {
+        logout: '退出登录',
+        signed_in_as: '当前登录'
+    },
+    login: {
+        title: '登录',
+        subtitle: '请输入账号与密码继续。',
+        username: '用户名',
+        password: '密码',
+        username_placeholder: '输入用户名',
+        password_placeholder: '输入密码',
+        submit: '登录',
+        submitting: '登录中...',
+        helper: '默认管理员账号：admin / admin',
+        error: '用户名或密码错误。'
+    },
+    ops: {
+        subtitle: {
+            default: '请选择操作继续。',
+            driver: '记录每日行程并确认补货。',
+            clerk: '记录每日出库总量并确认补货。',
+            manager: '审批事项、确认回流并查看报表。'
+        },
+        manager: {
+            title: '经理操作台',
+            tabs: {
+                approvals: '审批',
+                confirmations: '确认',
+                adjustments: '调整',
+                reports: '报表'
+            }
+        }
     },
     roles: {
         driver: '司机',
