@@ -11,7 +11,8 @@ export const zh = {
     },
     common: {
         logout: '退出登录',
-        signed_in_as: '当前登录'
+        signed_in_as: '当前登录',
+        close: '关闭'
     },
     login: {
         title: '登录',
@@ -63,7 +64,10 @@ export const zh = {
             tag_factories: '分厂',
             tag_consumables: '耗材',
             available: '可用',
-            refresh: '刷新基础数据'
+            refresh: '刷新基础数据',
+            factory_list: '分厂列表',
+            consumable_list: '耗材列表',
+            empty: '暂无数据。'
         },
         role_workspace: {
             title: '角色工作台'
@@ -149,10 +153,31 @@ export const zh = {
         refresh: '刷新',
         load_error: '加载箱量失败。',
         last_updated: '更新时间：{{time}}',
+        view_history: '查看明细',
+        history_title: '箱量变化记录 — {{factory}}',
+        history_loading: '正在加载记录...',
+        history_error: '加载记录失败。',
+        history_empty: '暂无记录。',
         table: {
             factory: '分厂',
             baseline: '初始数量',
-            current: '当前箱量'
+            current: '当前箱量',
+            history: '明细'
+        },
+        history: {
+            time: '时间',
+            type: '类型',
+            change: '变化',
+            total: '累计',
+            actor: '操作人',
+            note: '备注',
+            system: '系统'
+        },
+        events: {
+            baseline: '初始数量',
+            trip_out: '司机送出',
+            outbound_out: '每日出库',
+            restock_in: '补货入库'
         }
     },
     daily_outbound: {

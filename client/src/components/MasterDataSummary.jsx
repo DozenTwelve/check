@@ -3,6 +3,8 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export function MasterDataSummary({ factories, consumables, loadMasterData }) {
     const { t } = useTranslation();
+    const factoryNames = factories.map((factory) => `${factory.code} - ${factory.name}`);
+    const consumableNames = consumables.map((item) => `${item.code} - ${item.name}`);
 
     return (
         <section className="card" style={{ '--delay': '120ms' }}>
@@ -16,15 +18,39 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                 {t('components.master_data.subtitle')}
             </p>
             <div className="stats-grid">
-                <div className="stat-box">
+                <div className="stat-box has-tooltip">
                     <div className="stat-label">{t('components.master_data.tag_factories')}</div>
                     <div className="stat-value">{factories.length}</div>
                     <div className="stat-sub">{t('components.master_data.available')}</div>
+                    <div className="stat-tooltip">
+                        <div className="stat-tooltip-title">{t('components.master_data.factory_list')}</div>
+                        {factoryNames.length === 0 ? (
+                            <div className="text-muted">{t('components.master_data.empty')}</div>
+                        ) : (
+                            <ul className="stat-tooltip-list">
+                                {factoryNames.map((name) => (
+                                    <li key={name}>{name}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
-                <div className="stat-box">
+                <div className="stat-box has-tooltip">
                     <div className="stat-label">{t('components.master_data.tag_consumables')}</div>
                     <div className="stat-value">{consumables.length}</div>
                     <div className="stat-sub">{t('components.master_data.available')}</div>
+                    <div className="stat-tooltip">
+                        <div className="stat-tooltip-title">{t('components.master_data.consumable_list')}</div>
+                        {consumableNames.length === 0 ? (
+                            <div className="text-muted">{t('components.master_data.empty')}</div>
+                        ) : (
+                            <ul className="stat-tooltip-list">
+                                {consumableNames.map((name) => (
+                                    <li key={name}>{name}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             </div>
         </section>

@@ -274,6 +274,107 @@ exports.getFactoryBoxCounts = async (req, res) => {
     }
 };
 
+exports.getFactoryBoxHistory = async (req, res) => {
+    const { role, site_id } = req.user;
+    const factoryId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(factoryId)) {
+        return res.status(400).json({ error: 'Invalid factory id' });
+    }
+
+    try {
+        if (role === 'manager') {
+            const linkCheck = await pool.query(
+                'SELECT 1 FROM site_factories WHERE site_id = $1 AND factory_id = $2',
+                [site_id, factoryId]
+            );
+            if (linkCheck.rowCount === 0) {
+                return res.status(403).json({ error: 'forbidden' });
+            }
+        }
+
+        const factoryResult = await pool.query(
+            'SELECT id, code, name, baseline_boxes, created_at FROM factories WHERE id = $1',
+            [factoryId]
+        );
+        if (factoryResult.rowCount === 0) {
+            return res.status(404).json({ error: 'factory_not_found' });
+        }
+
+        const factory = factoryResult.rows[0];
+        const historyResult = await pool.query(
+            `
+      WITH events AS (
+        SELECT
+          $1::bigint AS factory_id,
+          $2::timestamptz AS event_time,
+          'baseline'::text AS event_type,
+          $3::integer AS delta,
+          0::integer AS event_order,
+          NULL::bigint AS ref_id,
+          NULL::text AS actor,
+          NULL::text AS note
+        UNION ALL
+        SELECT
+          t.factory_id,
+          t.updated_at AS event_time,
+          'trip_out' AS event_type,
+          -t.quantity AS delta,
+          1 AS event_order,
+          t.id AS ref_id,
+          u.display_name AS actor,
+          t.note AS note
+        FROM return_trips t
+        JOIN users u ON t.driver_id = u.id
+        WHERE t.factory_id = $1 AND t.status = 'approved'
+        UNION ALL
+        SELECT
+          o.factory_id,
+          o.updated_at AS event_time,
+          'outbound_out' AS event_type,
+          -o.quantity AS delta,
+          1 AS event_order,
+          o.id AS ref_id,
+          u.display_name AS actor,
+          NULL::text AS note
+        FROM daily_outbound o
+        JOIN users u ON o.clerk_id = u.id
+        WHERE o.factory_id = $1 AND o.status = 'approved'
+        UNION ALL
+        SELECT
+          r.factory_id,
+          COALESCE(r.received_at, r.updated_at) AS event_time,
+          'restock_in' AS event_type,
+          r.quantity AS delta,
+          1 AS event_order,
+          r.id AS ref_id,
+          u.display_name AS actor,
+          r.note AS note
+        FROM factory_restocks r
+        JOIN users u ON r.manager_id = u.id
+        WHERE r.factory_id = $1 AND r.status = 'received'
+      )
+      SELECT
+        event_time,
+        event_type,
+        delta,
+        ref_id,
+        actor,
+        note,
+        SUM(delta) OVER (ORDER BY event_time, event_order, ref_id NULLS FIRST) AS running_total
+      FROM events
+      ORDER BY event_time, event_order, ref_id NULLS FIRST
+      `,
+            [factoryId, factory.created_at, factory.baseline_boxes]
+        );
+
+        res.json({ factory, events: historyResult.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load box history' });
+    }
+};
+
 exports.deleteFactory = async (req, res) => {
     const { id } = req.params;
     try {

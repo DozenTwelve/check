@@ -13,6 +13,7 @@ router.delete('/consumables/:id', requireUser, requireRole(['admin']), masterDat
 // Factories
 router.get('/factories', requireUser, masterDataController.getFactories);
 router.get('/factories/box-counts', requireUser, requireRole(['admin', 'manager']), masterDataController.getFactoryBoxCounts);
+router.get('/factories/:id/box-history', requireUser, requireRole(['admin', 'manager']), masterDataController.getFactoryBoxHistory);
 router.get('/factories/:factory_id/sites', requireUser, masterDataController.getFactorySites);
 router.get('/factories/:id/staff', requireUser, masterDataController.getFactoryStaff);
 router.post('/factories', requireUser, requireRole(['admin']), masterDataController.createFactory);

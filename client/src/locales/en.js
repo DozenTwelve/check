@@ -11,7 +11,8 @@ export const en = {
     },
     common: {
         logout: 'Log Out',
-        signed_in_as: 'Signed in as'
+        signed_in_as: 'Signed in as',
+        close: 'Close'
     },
     login: {
         title: 'Sign In',
@@ -63,7 +64,10 @@ export const en = {
             tag_factories: 'Factories',
             tag_consumables: 'Consumables',
             available: 'available',
-            refresh: 'Refresh Master Data'
+            refresh: 'Refresh Master Data',
+            factory_list: 'Factory list',
+            consumable_list: 'Consumable list',
+            empty: 'No items available.'
         },
         role_workspace: {
             title: 'Role Workspace'
@@ -149,10 +153,31 @@ export const en = {
         refresh: 'Refresh',
         load_error: 'Failed to load box counts.',
         last_updated: 'Last updated: {{time}}',
+        view_history: 'View History',
+        history_title: 'Box History — {{factory}}',
+        history_loading: 'Loading history...',
+        history_error: 'Failed to load history.',
+        history_empty: 'No history rows yet.',
         table: {
             factory: 'Factory',
             baseline: 'Baseline',
-            current: 'Current Boxes'
+            current: 'Current Boxes',
+            history: 'History'
+        },
+        history: {
+            time: 'Time',
+            type: 'Type',
+            change: 'Change',
+            total: 'Total',
+            actor: 'By',
+            note: 'Note',
+            system: 'System'
+        },
+        events: {
+            baseline: 'Baseline',
+            trip_out: 'Driver Trip Out',
+            outbound_out: 'Daily Outbound',
+            restock_in: 'Restock In'
         }
     },
     daily_outbound: {

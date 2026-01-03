@@ -381,6 +381,10 @@ body::before {
   border: 1px solid var(--border);
 }
 
+.stat-box.has-tooltip {
+  position: relative;
+}
+
 .stat-label {
   font-size: 0.8rem;
   color: var(--muted);
@@ -388,6 +392,86 @@ body::before {
   letter-spacing: 0.05em;
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+.stat-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translate(-50%, 10px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  width: min(280px, 70vw);
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+}
+
+.stat-box:hover .stat-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.stat-tooltip-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--accent-3);
+}
+
+.stat-tooltip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 32, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  max-width: 960px;
+  width: min(960px, 96vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 24px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.delta-positive {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.delta-negative {
+  color: #c66;
+  font-weight: 600;
 }
 
 .stat-value {
