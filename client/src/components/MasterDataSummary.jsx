@@ -3,8 +3,14 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export function MasterDataSummary({ factories, consumables, loadMasterData }) {
     const { t } = useTranslation();
-    const factoryNames = factories.map((factory) => `${factory.code} - ${factory.name}`);
-    const consumableNames = consumables.map((item) => `${item.code} - ${item.name}`);
+    const factoryItems = factories.map((factory) => ({
+        id: factory.id,
+        label: `${factory.code} - ${factory.name}`
+    }));
+    const consumableItems = consumables.map((item) => ({
+        id: item.id,
+        label: `${item.code} - ${item.name}`
+    }));
 
     return (
         <section className="card" style={{ '--delay': '120ms' }}>
@@ -24,12 +30,12 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                     <div className="stat-sub">{t('components.master_data.available')}</div>
                     <div className="stat-tooltip">
                         <div className="stat-tooltip-title">{t('components.master_data.factory_list')}</div>
-                        {factoryNames.length === 0 ? (
+                        {factoryItems.length === 0 ? (
                             <div className="text-muted">{t('components.master_data.empty')}</div>
                         ) : (
                             <ul className="stat-tooltip-list">
-                                {factoryNames.map((name) => (
-                                    <li key={name}>{name}</li>
+                                {factoryItems.map((item) => (
+                                    <li key={item.id}>{item.label}</li>
                                 ))}
                             </ul>
                         )}
@@ -41,12 +47,12 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                     <div className="stat-sub">{t('components.master_data.available')}</div>
                     <div className="stat-tooltip">
                         <div className="stat-tooltip-title">{t('components.master_data.consumable_list')}</div>
-                        {consumableNames.length === 0 ? (
+                        {consumableItems.length === 0 ? (
                             <div className="text-muted">{t('components.master_data.empty')}</div>
                         ) : (
                             <ul className="stat-tooltip-list">
-                                {consumableNames.map((name) => (
-                                    <li key={name}>{name}</li>
+                                {consumableItems.map((item) => (
+                                    <li key={item.id}>{item.label}</li>
                                 ))}
                             </ul>
                         )}

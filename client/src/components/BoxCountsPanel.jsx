@@ -80,7 +80,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
     }, [autoRefreshMs, loadCounts]);
 
     return (
-        <section className="card" style={{ '--delay': '80ms' }}>
+        <section className="card" style={{ '--delay': '80ms', marginBottom: '24px' }}>
             <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
                 <h3>{title}</h3>
                 <button className="button small ghost" type="button" onClick={() => loadCounts(false)}>
