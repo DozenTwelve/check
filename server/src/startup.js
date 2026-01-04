@@ -10,6 +10,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const ADMIN_DISPLAY_NAME = process.env.ADMIN_DISPLAY_NAME || 'Admin';
 const DB_CONNECT_RETRIES = Number.parseInt(process.env.DB_CONNECT_RETRIES || '30', 10);
 const DB_CONNECT_DELAY_MS = Number.parseInt(process.env.DB_CONNECT_DELAY_MS || '2000', 10);
+const EXIT_AFTER_SEED = process.env.STARTUP_EXIT_AFTER_SEED === 'true';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -124,6 +125,11 @@ async function main() {
 
   await ensurePasswordHashColumn();
   await ensureAdminUser();
+
+  if (EXIT_AFTER_SEED) {
+    await pool.end();
+    return;
+  }
 
   require('./index');
 }
