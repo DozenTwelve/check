@@ -2,47 +2,59 @@ const { pool } = require('../config/db');
 
 // Get all pending items (Driver Trips + Clerk Outbound) for the Manager's SITE
 exports.getPendingItems = async (req, res) => {
-    const { site_id } = req.user;
+    const { site_id, role } = req.user;
 
-    // If manager has no site assigned, they might see nothing or everything?
-    // Safety: If no site_id, return empty (or handle Admin who sees all)
-    if (!site_id && req.user.role !== 'admin') {
+    // If manager has no site assigned, return empty
+    if (!site_id && role !== 'admin') {
         return res.json({ trips: [], outbound: [] });
     }
 
     try {
-        // For managers, site_id will be present and used in the query.
-        // For admins, site_id might be null, in which case we fetch all.
-        const siteFilterForOutbound = site_id ? `AND f.site_id = $1` : '';
-        const params = site_id ? [site_id] : [];
+        let pendingTrips;
+        let pendingOutbound;
 
-        // 1. Pending Trips (Filtered by Destination Site)
-        // This query explicitly filters by t.site_id = $1, so it requires site_id to be present.
-        // The early return for !site_id handles cases where a manager has no site.
-        // Admins (who might not have a site_id) will not use this specific query structure for trips
-        // if they are meant to see all trips, but the current instruction forces site_id filter.
-        // If an admin should see all trips, this logic would need adjustment (e.g., a separate admin query).
-        // For now, assuming this is for managers who *must* have a site_id.
-        const pendingTrips = await pool.query(`
-      SELECT t.*, f.name as factory_name, s.name as site_name, u.display_name as submitter_name, 'trip' as type
-      FROM return_trips t
-      JOIN factories f ON t.factory_id = f.id
-      JOIN client_sites s ON t.site_id = s.id
-      JOIN users u ON t.driver_id = u.id
-      WHERE t.status = 'pending' AND t.site_id = $1
-      ORDER BY t.created_at ASC
-    `, params);
+        if (role === 'admin') {
+            // Admin sees ALL pending items across all sites
+            pendingTrips = await pool.query(`
+                SELECT t.*, f.name as factory_name, s.name as site_name, u.display_name as submitter_name, 'trip' as type
+                FROM return_trips t
+                JOIN factories f ON t.factory_id = f.id
+                JOIN client_sites s ON t.site_id = s.id
+                JOIN users u ON t.driver_id = u.id
+                WHERE t.status = 'pending'
+                ORDER BY t.created_at ASC
+            `);
 
-        // 2. Pending Outbound Reports (Check if factory is linked to manager's site)
-        const pendingOutbound = await pool.query(`
-      SELECT o.*, f.name as factory_name, u.display_name as submitter_name, 'outbound' as type
-      FROM daily_outbound o
-      JOIN factories f ON o.factory_id = f.id
-      JOIN users u ON o.clerk_id = u.id
-      JOIN site_factories sf ON o.factory_id = sf.factory_id 
-      WHERE o.status = 'pending' AND sf.site_id = $1
-      ORDER BY o.created_at ASC
-    `, params);
+            pendingOutbound = await pool.query(`
+                SELECT DISTINCT o.*, f.name as factory_name, u.display_name as submitter_name, 'outbound' as type
+                FROM daily_outbound o
+                JOIN factories f ON o.factory_id = f.id
+                JOIN users u ON o.clerk_id = u.id
+                WHERE o.status = 'pending'
+                ORDER BY o.created_at ASC
+            `);
+        } else {
+            // Manager sees pending items for their assigned site
+            pendingTrips = await pool.query(`
+                SELECT t.*, f.name as factory_name, s.name as site_name, u.display_name as submitter_name, 'trip' as type
+                FROM return_trips t
+                JOIN factories f ON t.factory_id = f.id
+                JOIN client_sites s ON t.site_id = s.id
+                JOIN users u ON t.driver_id = u.id
+                WHERE t.status = 'pending' AND t.site_id = $1
+                ORDER BY t.created_at ASC
+            `, [site_id]);
+
+            pendingOutbound = await pool.query(`
+                SELECT o.*, f.name as factory_name, u.display_name as submitter_name, 'outbound' as type
+                FROM daily_outbound o
+                JOIN factories f ON o.factory_id = f.id
+                JOIN users u ON o.clerk_id = u.id
+                JOIN site_factories sf ON o.factory_id = sf.factory_id 
+                WHERE o.status = 'pending' AND sf.site_id = $1
+                ORDER BY o.created_at ASC
+            `, [site_id]);
+        }
 
         res.json({
             trips: pendingTrips.rows,

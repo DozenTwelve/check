@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const { pool } = require('./config/db');
 
 // Routes
@@ -13,6 +14,7 @@ const managerRoutes = require('./routes/manager');
 const restockRoutes = require('./routes/restocks');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Health Check

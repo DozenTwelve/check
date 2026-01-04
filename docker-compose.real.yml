@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: checkingall
+      POSTGRES_PASSWORD: checkingall
+      POSTGRES_DB: checkingall
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  server:
+    image: ghcr.io/dozentwelve/check:server-latest
+    environment:
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_DISPLAY_NAME: Admin
+      NODE_ENV: production
+      JWT_SECRET: 235eec9bb9ecdb49a6132f5c3cb6f1d6562c9a66f9471312c826562543416f68
+      DATABASE_URL: postgres://checkingall:checkingall@db:5432/checkingall
+    depends_on:
+      - db
+    ports:
+      - "192.168.0.186:7787:3001"
+    restart: unless-stopped
+
+  client:
+    image: ghcr.io/dozentwelve/check:client-latest
+    depends_on:
+      - server
+    ports:
+      - "192.168.0.186:7788:80"
+    restart: unless-stopped
+
+volumes:
+  db_data:

@@ -313,7 +313,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                         </button>
                                     )}
                                     {editingSiteId && (
-                                        <button className="button ghost" onClick={handleCancel}>
+                                        <button className="button ghost" type="button" onClick={handleCancel}>
                                             {isViewMode ? t('admin.actions.close') : t('admin.actions.cancel')}
                                         </button>
                                     )}
@@ -439,7 +439,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                         </button>
                                     )}
                                     {editingFactoryId && (
-                                        <button className="button ghost" onClick={handleCancel}>
+                                        <button className="button ghost" type="button" onClick={handleCancel}>
                                             {isViewMode ? t('admin.actions.close') : t('admin.actions.cancel')}
                                         </button>
                                     )}
@@ -542,7 +542,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                     {editingUserId ? t('admin.actions.update') : t('admin.actions.create')}
                                 </button>
                                 {editingUserId && (
-                                    <button className="button ghost" onClick={handleCancel}>{t('admin.actions.cancel')}</button>
+                                    <button className="button ghost" type="button" onClick={handleCancel}>{t('admin.actions.cancel')}</button>
                                 )}
                             </div>
                         </div>
@@ -593,7 +593,7 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                             <button className="button" type="submit">
                                 {editingConsumableId ? t('admin.actions.update') : t('admin.actions.create')}
                             </button>
-                            {editingConsumableId && <button className="button ghost" onClick={handleCancel}>{t('admin.actions.cancel')}</button>}
+                            {editingConsumableId && <button className="button ghost" type="button" onClick={handleCancel}>{t('admin.actions.cancel')}</button>}
                         </div>
                     </form>
                     <ul className="list-group">
