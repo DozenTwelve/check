@@ -3,7 +3,7 @@ import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
 import { BoxCountsPanel } from './BoxCountsPanel';
 
-export function AdminPanel({ user, userId, factories, consumables, globalBalances = {}, onRefresh, onNotice }) {
+export function AdminPanel({ user, userId, factories, consumables, inventorySummary = {}, onRefresh, onNotice }) {
     const { t } = useTranslation();
     const getRoleLabel = (role) => {
         const label = t(`roles.${role}`);
@@ -39,8 +39,11 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
     const currentConsumable = editingConsumableId
         ? consumables.find((c) => Number(c.id) === Number(editingConsumableId))
         : null;
+    const currentConsumableSummary = editingConsumableId
+        ? (inventorySummary[String(editingConsumableId)] || {})
+        : {};
     const currentConsumableQty = editingConsumableId
-        ? (globalBalances[Number(editingConsumableId)] ?? 0)
+        ? (currentConsumableSummary.total ?? 0)
         : null;
 
     useEffect(() => {
@@ -849,7 +852,7 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                             )}
                             {editingConsumableId && (
                                 <span className="tag">
-                                    {t('admin.labels.current_qty')}: {currentConsumableQty}{currentConsumable?.unit ? ` ${currentConsumable.unit}` : ''}
+                                    {t('admin.labels.total_qty')}: {currentConsumableQty}{currentConsumable?.unit ? ` ${currentConsumable.unit}` : ''}
                                 </span>
                             )}
                             <button className="button" type="submit">
@@ -864,7 +867,12 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                                 <span>
                                     <strong>{c.code}</strong> - {c.name} ({c.unit})
                                     <span className="tag" style={{ marginLeft: '8px' }}>
-                                        {t('admin.labels.qty')}: {globalBalances[c.id] ?? 0}{c.unit ? ` ${c.unit}` : ''}
+                                        {t('admin.labels.total_qty')}: {(inventorySummary[String(c.id)]?.total ?? 0)}{c.unit ? ` ${c.unit}` : ''}
+                                    </span>
+                                    <span className="tag" style={{ marginLeft: '8px' }}>
+                                        {t('admin.labels.breakdown')}: {t('admin.labels.global_qty')} {(inventorySummary[String(c.id)]?.global ?? 0)},
+                                        {t('admin.labels.factory_qty')} {(inventorySummary[String(c.id)]?.factory ?? 0)},
+                                        {t('admin.labels.site_qty')} {(inventorySummary[String(c.id)]?.site ?? 0)}
                                     </span>
                                 </span>
                                 <div className="actions">

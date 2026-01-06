@@ -62,7 +62,7 @@ function AppContent() {
   const { t, language, setLanguage } = useTranslation();
   const { path, navigate } = useRoute();
 
-  const { factories, consumables, globalBalances, loadMasterData } = useMasterData(user, userId, setNotice);
+  const { factories, consumables, inventorySummary, loadMasterData } = useMasterData(user, userId, setNotice);
   const { dailyReturns, loadDailyReturns } = useDailyReturns(user, userId, setNotice);
 
   const [reportRows, setReportRows] = useState([]);
@@ -200,7 +200,7 @@ function AppContent() {
           <MasterDataSummary
             factories={factories}
             consumables={consumables}
-            globalBalances={globalBalances}
+            inventorySummary={inventorySummary}
             loadMasterData={loadMasterData}
           />
         </div>
@@ -265,7 +265,7 @@ function AppContent() {
                 userId={userId}
                 factories={factories}
                 consumables={consumables}
-                globalBalances={globalBalances}
+                inventorySummary={inventorySummary}
                 onRefresh={() => {
                   loadMasterData();
                   loadDailyReturns();

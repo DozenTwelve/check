@@ -1,18 +1,24 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function MasterDataSummary({ factories, consumables, globalBalances = {}, loadMasterData }) {
+export function MasterDataSummary({ factories, consumables, inventorySummary = {}, loadMasterData }) {
     const { t } = useTranslation();
     const factoryItems = factories.map((factory) => ({
         id: factory.id,
         label: `${factory.code} - ${factory.name}`
     }));
-    const consumableItems = consumables.map((item) => ({
-        id: item.id,
-        label: `${item.code} - ${item.name}`,
-        qty: globalBalances[item.id] ?? 0,
-        unit: item.unit || ''
-    }));
+    const consumableItems = consumables.map((item) => {
+        const summary = inventorySummary[String(item.id)] || {};
+        return {
+            id: item.id,
+            label: `${item.code} - ${item.name}`,
+            total: summary.total ?? 0,
+            global: summary.global ?? 0,
+            factory: summary.factory ?? 0,
+            site: summary.site ?? 0,
+            unit: item.unit || ''
+        };
+    });
 
     return (
         <section className="card" style={{ '--delay': '120ms' }}>
@@ -63,7 +69,8 @@ export function MasterDataSummary({ factories, consumables, globalBalances = {},
                             <ul className="stat-tooltip-list">
                                 {consumableItems.map((item) => (
                                     <li key={item.id}>
-                                        {item.label}: {item.qty}{item.unit ? ` ${item.unit}` : ''}
+                                        {item.label}: {t('components.master_data.total_label')} {item.total}{item.unit ? ` ${item.unit}` : ''} (
+                                        {t('components.master_data.global_label')} {item.global}, {t('components.master_data.factories_label')} {item.factory}, {t('components.master_data.sites_label')} {item.site})
                                     </li>
                                 ))}
                             </ul>
