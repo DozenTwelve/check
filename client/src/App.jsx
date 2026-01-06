@@ -237,6 +237,7 @@ function AppContent() {
             )}
             {activeSection === 'approvals' && (
               <ManagerDashboard
+                user={user}
                 userId={userId}
                 factories={factories}
                 consumables={consumables}
@@ -253,6 +254,7 @@ function AppContent() {
             )}
             {activeSection === 'report' && (
                 <Reports
+                  userId={userId}
                   onRun={handleReport}
                   reportRows={reportRows}
                   factories={factories}
@@ -367,6 +369,7 @@ function AppContent() {
 
             {managerTab === 'approvals' && (
               <ManagerDashboard
+                user={user}
                 userId={userId}
                 factories={factories}
                 consumables={consumables}
@@ -383,6 +386,7 @@ function AppContent() {
             )}
             {managerTab === 'reports' && (
                 <Reports
+                  userId={userId}
                   onRun={handleReport}
                   reportRows={reportRows}
                   factories={factories}

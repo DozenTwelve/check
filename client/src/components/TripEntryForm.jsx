@@ -12,6 +12,8 @@ export function TripEntryForm({ user, userId, factories, consumables = [], onNot
     const [factorySites, setFactorySites] = useState([]);
     const [selectedSite, setSelectedSite] = useState('');
     const [trips, setTrips] = useState([]);
+    const [incomingRestocks, setIncomingRestocks] = useState([]);
+    const [incomingLoading, setIncomingLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     const [lines, setLines] = useState([{ consumable_id: '', qty: '' }]);
@@ -19,6 +21,7 @@ export function TripEntryForm({ user, userId, factories, consumables = [], onNot
 
     useEffect(() => {
         loadMyTrips();
+        loadIncomingRestocks();
     }, [userId]);
 
     useEffect(() => {
@@ -64,6 +67,33 @@ export function TripEntryForm({ user, userId, factories, consumables = [], onNot
         } catch (err) {
             console.error(err);
             if (onNotice) onNotice({ type: 'error', text: t('trip_entry.notices.load_error') });
+        }
+    }
+
+    async function loadIncomingRestocks() {
+        setIncomingLoading(true);
+        try {
+            const data = await apiFetch('/trips/incoming', { userId });
+            setIncomingRestocks(data || []);
+        } catch (err) {
+            console.error(err);
+            setIncomingRestocks([]);
+        } finally {
+            setIncomingLoading(false);
+        }
+    }
+
+    async function handleConfirmRestock(id) {
+        try {
+            await apiFetch(`/trips/incoming/${id}/confirm`, {
+                method: 'POST',
+                userId
+            });
+            if (onNotice) onNotice({ type: 'success', text: t('trip_entry.notices.confirm_success') });
+            loadIncomingRestocks();
+        } catch (err) {
+            console.error(err);
+            if (onNotice) onNotice({ type: 'error', text: t('trip_entry.notices.confirm_error') });
         }
     }
 
@@ -246,6 +276,53 @@ export function TripEntryForm({ user, userId, factories, consumables = [], onNot
                     {trips.length === 0 && <tr><td colSpan="5">{t('trip_entry.empty')}</td></tr>}
                 </tbody>
             </table>
+
+            <div className="divider"></div>
+
+            <h3>{t('trip_entry.incoming_title')}</h3>
+            {incomingLoading ? (
+                <div className="text-muted">{t('trip_entry.incoming_loading')}</div>
+            ) : (
+                <table className="table">
+                    <thead>
+                        <tr>
+                            <th>{t('trip_entry.incoming_table.date')}</th>
+                            <th>{t('trip_entry.incoming_table.site')}</th>
+                            <th>{t('trip_entry.incoming_table.lines')}</th>
+                            <th>{t('trip_entry.incoming_table.action')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {incomingRestocks.map((item) => (
+                            <tr key={item.id}>
+                                <td>{item.biz_date.slice(0, 10)}</td>
+                                <td>{item.site_name || item.site_id}</td>
+                                <td>
+                                    {(item.lines || []).map((line) => (
+                                        <div key={`${item.id}-${line.consumable_id}`}>
+                                            {mapConsumable(line.consumable_id)}: {line.qty}
+                                        </div>
+                                    ))}
+                                </td>
+                                <td>
+                                    <button
+                                        className="button small"
+                                        type="button"
+                                        onClick={() => handleConfirmRestock(item.id)}
+                                    >
+                                        {t('trip_entry.incoming_confirm')}
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        {incomingRestocks.length === 0 && (
+                            <tr>
+                                <td colSpan="4">{t('trip_entry.incoming_empty')}</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 }

@@ -803,7 +803,8 @@ exports.getSiteFactories = async (req, res) => {
 };
 
 exports.createClientSite = async (req, res, next) => {
-    const { code, name, is_active, factory_ids } = req.body;
+    const { code, name, is_active, factory_ids, baseline_lines } = req.body;
+    const parsedLines = parseTransferLines(baseline_lines);
 
     const client = await pool.connect();
     try {
@@ -816,11 +817,13 @@ exports.createClientSite = async (req, res, next) => {
         );
         const siteId = result.rows[0].id;
 
-        await client.query(
+        const locationResult = await client.query(
             `INSERT INTO inventory_locations (location_type, site_id, label)
-       VALUES ('site', $1, $2)`,
+       VALUES ('site', $1, $2)
+       RETURNING id`,
             [siteId, name]
         );
+        const siteLocationId = locationResult.rows[0]?.id;
 
         if (factory_ids && Array.isArray(factory_ids)) {
             for (const factoryId of factory_ids) {
@@ -829,6 +832,69 @@ exports.createClientSite = async (req, res, next) => {
                     [siteId, factoryId]
                 );
             }
+        }
+
+        if (parsedLines) {
+            const globalLocation = await client.query(
+                `SELECT id FROM inventory_locations WHERE location_type = 'global' LIMIT 1`
+            );
+            if (globalLocation.rowCount === 0 || !siteLocationId) {
+                await client.query('ROLLBACK');
+                return res.status(500).json({ error: 'inventory_locations_missing' });
+            }
+
+            const totalsByConsumable = new Map();
+            for (const line of parsedLines) {
+                totalsByConsumable.set(
+                    line.consumable_id,
+                    (totalsByConsumable.get(line.consumable_id) || 0) + line.qty
+                );
+            }
+
+            const consumableIds = Array.from(totalsByConsumable.keys());
+            if (consumableIds.length > 0) {
+                const balanceResult = await client.query(
+                    `SELECT consumable_id, as_of_qty
+           FROM inventory_balances_as_of(now(), true)
+           WHERE location_id = $1 AND consumable_id = ANY($2::bigint[])`,
+                    [globalLocation.rows[0].id, consumableIds]
+                );
+                const availableMap = new Map(
+                    balanceResult.rows.map((row) => [Number(row.consumable_id), Number(row.as_of_qty)])
+                );
+
+                for (const [consumableId, requestedQty] of totalsByConsumable.entries()) {
+                    const availableQty = availableMap.get(consumableId) || 0;
+                    if (requestedQty > availableQty) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ error: 'insufficient_global_inventory' });
+                    }
+                }
+            }
+
+            const transferResult = await client.query(
+                `INSERT INTO inventory_transfers
+         (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+         VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                 'full_count'::verification_level, 'Site initial inventory', 'admin_adjustment')
+         RETURNING id`,
+                [globalLocation.rows[0].id, siteLocationId, req.user.id]
+            );
+
+            for (const line of parsedLines) {
+                await client.query(
+                    `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+           VALUES ($1, $2, $3)`,
+                    [transferResult.rows[0].id, line.consumable_id, line.qty]
+                );
+            }
+
+            await client.query(
+                `UPDATE inventory_transfers
+         SET status = 'approved', approved_by = $2, approved_at = now()
+         WHERE id = $1`,
+                [transferResult.rows[0].id, req.user.id]
+            );
         }
 
         await client.query('COMMIT');
@@ -843,7 +909,8 @@ exports.createClientSite = async (req, res, next) => {
 
 exports.updateClientSite = async (req, res, next) => {
     const { id } = req.params;
-    const { code, name, is_active, factory_ids } = req.body;
+    const { code, name, is_active, factory_ids, adjust_lines } = req.body;
+    const adjustLines = parseAdjustmentLines(adjust_lines);
 
     const client = await pool.connect();
     try {
@@ -875,6 +942,130 @@ exports.updateClientSite = async (req, res, next) => {
        WHERE location_type = 'site' AND site_id = $2`,
             [name, id]
         );
+
+        if (adjustLines) {
+            const globalLocation = await client.query(
+                `SELECT id FROM inventory_locations WHERE location_type = 'global' LIMIT 1`
+            );
+            const siteLocation = await client.query(
+                `SELECT id FROM inventory_locations WHERE location_type = 'site' AND site_id = $1`,
+                [id]
+            );
+            if (globalLocation.rowCount === 0 || siteLocation.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(500).json({ error: 'inventory_locations_missing' });
+            }
+
+            const deltaByConsumable = new Map();
+            for (const line of adjustLines) {
+                deltaByConsumable.set(
+                    line.consumable_id,
+                    (deltaByConsumable.get(line.consumable_id) || 0) + line.qty
+                );
+            }
+
+            const positiveLines = [];
+            const negativeLines = [];
+            for (const [consumableId, deltaQty] of deltaByConsumable.entries()) {
+                if (deltaQty > 0) {
+                    positiveLines.push({ consumable_id: consumableId, qty: deltaQty });
+                } else if (deltaQty < 0) {
+                    negativeLines.push({ consumable_id: consumableId, qty: Math.abs(deltaQty) });
+                }
+            }
+
+            if (positiveLines.length > 0) {
+                const consumableIds = positiveLines.map((line) => line.consumable_id);
+                const balanceResult = await client.query(
+                    `SELECT consumable_id, as_of_qty
+           FROM inventory_balances_as_of(now(), true)
+           WHERE location_id = $1 AND consumable_id = ANY($2::bigint[])`,
+                    [globalLocation.rows[0].id, consumableIds]
+                );
+                const availableMap = new Map(
+                    balanceResult.rows.map((row) => [Number(row.consumable_id), Number(row.as_of_qty)])
+                );
+                for (const line of positiveLines) {
+                    const availableQty = availableMap.get(line.consumable_id) || 0;
+                    if (line.qty > availableQty) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ error: 'insufficient_global_inventory' });
+                    }
+                }
+            }
+
+            if (negativeLines.length > 0) {
+                const consumableIds = negativeLines.map((line) => line.consumable_id);
+                const balanceResult = await client.query(
+                    `SELECT consumable_id, as_of_qty
+           FROM inventory_balances_as_of(now(), true)
+           WHERE location_id = $1 AND consumable_id = ANY($2::bigint[])`,
+                    [siteLocation.rows[0].id, consumableIds]
+                );
+                const availableMap = new Map(
+                    balanceResult.rows.map((row) => [Number(row.consumable_id), Number(row.as_of_qty)])
+                );
+                for (const line of negativeLines) {
+                    const availableQty = availableMap.get(line.consumable_id) || 0;
+                    if (line.qty > availableQty) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ error: 'insufficient_site_inventory' });
+                    }
+                }
+            }
+
+            if (positiveLines.length > 0) {
+                const transferResult = await client.query(
+                    `INSERT INTO inventory_transfers
+           (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+           VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                   'full_count'::verification_level, 'Site inventory increase', 'admin_adjustment')
+           RETURNING id`,
+                    [globalLocation.rows[0].id, siteLocation.rows[0].id, req.user.id]
+                );
+
+                for (const line of positiveLines) {
+                    await client.query(
+                        `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+             VALUES ($1, $2, $3)`,
+                        [transferResult.rows[0].id, line.consumable_id, line.qty]
+                    );
+                }
+
+                await client.query(
+                    `UPDATE inventory_transfers
+           SET status = 'approved', approved_by = $2, approved_at = now()
+           WHERE id = $1`,
+                    [transferResult.rows[0].id, req.user.id]
+                );
+            }
+
+            if (negativeLines.length > 0) {
+                const transferResult = await client.query(
+                    `INSERT INTO inventory_transfers
+           (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+           VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                   'full_count'::verification_level, 'Site inventory decrease', 'admin_adjustment')
+           RETURNING id`,
+                    [siteLocation.rows[0].id, globalLocation.rows[0].id, req.user.id]
+                );
+
+                for (const line of negativeLines) {
+                    await client.query(
+                        `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+             VALUES ($1, $2, $3)`,
+                        [transferResult.rows[0].id, line.consumable_id, line.qty]
+                    );
+                }
+
+                await client.query(
+                    `UPDATE inventory_transfers
+           SET status = 'approved', approved_by = $2, approved_at = now()
+           WHERE id = $1`,
+                    [transferResult.rows[0].id, req.user.id]
+                );
+            }
+        }
 
         await client.query('COMMIT');
         res.json(result.rows[0]);

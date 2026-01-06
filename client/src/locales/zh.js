@@ -146,10 +146,24 @@ export const zh = {
         run_btn: '查询余额',
         yes: '是',
         include_submitted: '包含未确认',
+        range_start: '开始日期',
+        range_end: '结束日期',
+        consumable_filter: '耗材筛选',
+        all_consumables: '全部耗材',
+        sections: {
+            factory_net: '分厂净变化',
+            site_debt: '站点欠账走势'
+        },
         table: {
             location: '位置',
+            factory: '分厂',
+            site: '站点',
+            date: '日期',
             consumable: '耗材',
-            qty: '截止数量'
+            qty: '截止数量',
+            start_qty: '期初数量',
+            end_qty: '期末数量',
+            delta: '变化量'
         },
         empty: '暂无报表数据。'
     },
@@ -222,6 +236,16 @@ export const zh = {
         submitting: '提交中...',
         submit: '提交行程',
         recent_title: '最近行程',
+        incoming_title: '待确认返库',
+        incoming_loading: '正在加载待确认返库...',
+        incoming_empty: '暂无待确认返库记录。',
+        incoming_confirm: '确认收货',
+        incoming_table: {
+            date: '日期',
+            site: '站点',
+            lines: '明细',
+            action: '操作'
+        },
         table: {
             date: '日期',
             factory: '分厂',
@@ -233,7 +257,9 @@ export const zh = {
         notices: {
             load_error: '加载行程失败。',
             submit_success: '行程已提交，等待审批。',
-            submit_error: '提交失败。'
+            submit_error: '提交失败。',
+            confirm_success: '已确认返库。',
+            confirm_error: '确认返库失败。'
         }
     },
     restock_confirm: {
@@ -246,7 +272,8 @@ export const zh = {
     manager_dashboard: {
         tabs: {
             approvals: '审批',
-            distribute: '分发（补货）'
+            distribute: '分发（补货）',
+            site_inventory: '站点库存'
         },
         reviews: {
             pending_trips: '待审批司机行程',
@@ -273,6 +300,19 @@ export const zh = {
             note_placeholder: '备注（司机姓名等）',
             dispatch: '派发补货',
             dispatched_notice: '补货已派发！'
+        },
+        site_inventory: {
+            title: '站点库存',
+            refresh: '刷新',
+            loading: '正在加载站点库存...',
+            no_site: '该经理未分配站点。',
+            missing_location: '站点库存位置缺失。',
+            error: '加载站点库存失败。',
+            empty: '暂无站点库存数据。',
+            table: {
+                consumable: '耗材',
+                qty: '数量'
+            }
         }
     },
     admin: {
@@ -315,6 +355,8 @@ export const zh = {
             assign_factory: '分配到分厂',
             baseline_lines: '分厂基线（耗材）',
             adjust_lines: '分厂库存调整',
+            site_baseline_lines: '站点初始库存',
+            site_adjust_lines: '站点库存调整',
             consumable: '耗材',
             qty: '数量',
             current_qty: '当前数量',

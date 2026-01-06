@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function ManagerDashboard({ userId, factories, consumables = [] }) {
+export function ManagerDashboard({ user, userId, factories, consumables = [] }) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState('reviews');
     const [pendingItems, setPendingItems] = useState({ trips: [] });
+    const [siteInventory, setSiteInventory] = useState([]);
+    const [siteInventoryLoading, setSiteInventoryLoading] = useState(false);
+    const [siteInventoryError, setSiteInventoryError] = useState('');
 
     const [restockForm, setRestockForm] = useState({ factory_id: '', note: '' });
     const [restockLines, setRestockLines] = useState([{ consumable_id: '', qty: '' }]);
@@ -17,6 +20,7 @@ export function ManagerDashboard({ userId, factories, consumables = [] }) {
 
     useEffect(() => {
         if (activeTab === 'reviews') loadPending();
+        if (activeTab === 'site_inventory') loadSiteInventory();
     }, [activeTab, userId]);
 
     async function loadPending() {
@@ -38,6 +42,27 @@ export function ManagerDashboard({ userId, factories, consumables = [] }) {
             loadPending(); // Refresh
         } catch (err) {
             console.error('Approval failed', err);
+        }
+    }
+
+    async function loadSiteInventory() {
+        setSiteInventoryLoading(true);
+        setSiteInventoryError('');
+        try {
+            const data = await apiFetch('/reports/site-inventory', { userId });
+            setSiteInventory(data || []);
+        } catch (err) {
+            console.error(err);
+            setSiteInventory([]);
+            if (err?.data?.error === 'manager_site_required') {
+                setSiteInventoryError(t('manager_dashboard.site_inventory.no_site'));
+            } else if (err?.data?.error === 'site_location_missing') {
+                setSiteInventoryError(t('manager_dashboard.site_inventory.missing_location'));
+            } else {
+                setSiteInventoryError(t('manager_dashboard.site_inventory.error'));
+            }
+        } finally {
+            setSiteInventoryLoading(false);
         }
     }
 
@@ -99,6 +124,11 @@ export function ManagerDashboard({ userId, factories, consumables = [] }) {
                 <button className={`tab ${activeTab === 'distribute' ? 'active' : ''}`} onClick={() => setActiveTab('distribute')}>
                     {t('manager_dashboard.tabs.distribute')}
                 </button>
+                {user?.role === 'manager' && (
+                    <button className={`tab ${activeTab === 'site_inventory' ? 'active' : ''}`} onClick={() => setActiveTab('site_inventory')}>
+                        {t('manager_dashboard.tabs.site_inventory')}
+                    </button>
+                )}
             </div>
 
             <div className="divider"></div>
@@ -218,6 +248,44 @@ export function ManagerDashboard({ userId, factories, consumables = [] }) {
                         <button className="button" type="submit">{t('manager_dashboard.distribute.dispatch')}</button>
                     </div>
                 </form>
+            )}
+
+            {activeTab === 'site_inventory' && (
+                <div className="card">
+                    <div className="card-header">
+                        <h3>{t('manager_dashboard.site_inventory.title')}</h3>
+                        <button className="button ghost small" type="button" onClick={loadSiteInventory}>
+                            {t('manager_dashboard.site_inventory.refresh')}
+                        </button>
+                    </div>
+                    {siteInventoryLoading ? (
+                        <div className="text-muted">{t('manager_dashboard.site_inventory.loading')}</div>
+                    ) : siteInventoryError ? (
+                        <div className="text-muted">{siteInventoryError}</div>
+                    ) : (
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>{t('manager_dashboard.site_inventory.table.consumable')}</th>
+                                    <th>{t('manager_dashboard.site_inventory.table.qty')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {siteInventory.map((row) => (
+                                    <tr key={row.consumable_id}>
+                                        <td>{row.consumable_code ? `${row.consumable_code} - ${row.consumable_name}` : row.consumable_id}</td>
+                                        <td>{row.qty}{row.consumable_unit ? ` ${row.consumable_unit}` : ''}</td>
+                                    </tr>
+                                ))}
+                                {siteInventory.length === 0 && (
+                                    <tr>
+                                        <td colSpan="2">{t('manager_dashboard.site_inventory.empty')}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
             )}
         </div>
     );

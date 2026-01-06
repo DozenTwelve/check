@@ -158,3 +158,85 @@ exports.deletePendingTrip = async (req, res) => {
         client.release();
     }
 };
+
+exports.listIncomingRestocks = async (req, res) => {
+    const factoryId = Number.parseInt(req.user.factory_id, 10);
+    if (!Number.isInteger(factoryId)) {
+        return res.json([]);
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT
+        t.id,
+        t.biz_date,
+        t.status,
+        t.created_at,
+        s.id AS site_id,
+        s.code AS site_code,
+        s.name AS site_name,
+        f.id AS factory_id,
+        f.code AS factory_code,
+        f.name AS factory_name,
+        u.display_name AS submitter_name,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'consumable_id', l.consumable_id,
+              'qty', l.qty
+            )
+          ) FILTER (WHERE l.id IS NOT NULL),
+          '[]'
+        ) AS lines
+      FROM inventory_transfers t
+      JOIN inventory_locations ls ON t.from_location_id = ls.id
+      JOIN client_sites s ON ls.site_id = s.id
+      JOIN inventory_locations lf ON t.to_location_id = lf.id
+      JOIN factories f ON lf.factory_id = f.id
+      JOIN users u ON t.created_by = u.id
+      LEFT JOIN inventory_transfer_lines l ON l.transfer_id = t.id
+      WHERE t.transfer_type = 'manager_restock'
+        AND t.status = 'submitted'
+        AND lf.factory_id = $1
+      GROUP BY t.id, s.id, f.id, u.display_name
+      ORDER BY t.created_at ASC`,
+            [factoryId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to list incoming restocks' });
+    }
+};
+
+exports.confirmIncomingRestock = async (req, res) => {
+    const factoryId = Number.parseInt(req.user.factory_id, 10);
+    const transferId = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(factoryId) || !Number.isInteger(transferId)) {
+        return res.status(400).json({ error: 'invalid_parameters' });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE inventory_transfers t
+       SET status = 'approved', approved_by = $1, approved_at = now()
+       FROM inventory_locations lf
+       WHERE t.to_location_id = lf.id
+         AND lf.location_type = 'factory'
+         AND lf.factory_id = $2
+         AND t.id = $3
+         AND t.transfer_type = 'manager_restock'
+         AND t.status = 'submitted'
+       RETURNING t.*`,
+            [req.user.id, factoryId, transferId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'restock_not_found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to confirm restock' });
+    }
+};

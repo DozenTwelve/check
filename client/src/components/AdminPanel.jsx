@@ -30,6 +30,9 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
     const [baselineLines, setBaselineLines] = useState([{ consumable_id: '', qty: '' }]);
     const [factoryAdjustLines, setFactoryAdjustLines] = useState([{ consumable_id: '', qty: '' }]);
     const [factoryBalances, setFactoryBalances] = useState({});
+    const [siteBaselineLines, setSiteBaselineLines] = useState([{ consumable_id: '', qty: '' }]);
+    const [siteAdjustLines, setSiteAdjustLines] = useState([{ consumable_id: '', qty: '' }]);
+    const [siteBalances, setSiteBalances] = useState({});
 
     // Associated Users State
     const [currentFactoryStaff, setCurrentFactoryStaff] = useState([]);
@@ -72,9 +75,21 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
         if (type === 'site') {
             setEditingSiteId(item.id);
             setSiteForm({ name: item.name, code: item.code, is_active: item.is_active, factory_ids: [] });
+            setSiteBaselineLines([{ consumable_id: '', qty: '' }]);
+            setSiteAdjustLines([{ consumable_id: '', qty: '' }]);
+            setSiteBalances({});
             // Fetch factories
             apiFetch(`/client-sites/${item.id}/factories`, { userId }).then(facts => {
                 setSiteForm(prev => ({ ...prev, factory_ids: facts.map(f => f.id) }));
+            });
+            apiFetch('/reports/balances?location_type=site&confirmed_only=true', { userId }).then((rows) => {
+                const map = {};
+                (rows || [])
+                    .filter((row) => Number(row.site_id) === Number(item.id))
+                    .forEach((row) => {
+                        map[row.consumable_id] = row.as_of_qty;
+                    });
+                setSiteBalances(map);
             });
             // Fetch managers
             apiFetch(`/client-sites/${item.id}/managers`, { userId }).then(mgrs => {
@@ -132,6 +147,9 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
     const handleCancel = () => {
         setIsViewMode(false);
         setEditingSiteId(null); setSiteForm({ name: '', code: '', is_active: true, factory_ids: [] }); setCurrentSiteManagers([]);
+        setSiteBaselineLines([{ consumable_id: '', qty: '' }]);
+        setSiteAdjustLines([{ consumable_id: '', qty: '' }]);
+        setSiteBalances({});
         setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], is_active: true }); setCurrentFactoryStaff([]);
         setFactoryAdjustLines([{ consumable_id: '', qty: '' }]); setFactoryBalances({});
         setEditingUserId(null); setUserForm({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
@@ -159,9 +177,28 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
         const url = isEdit ? `/client-sites/${editingSiteId}` : '/client-sites';
         const method = isEdit ? 'PUT' : 'POST';
         try {
+            const payloadBaselineLines = siteBaselineLines
+                .filter((line) => line.consumable_id && line.qty !== '')
+                .map((line) => ({
+                    consumable_id: Number(line.consumable_id),
+                    qty: Number(line.qty)
+                }))
+                .filter((line) => Number.isInteger(line.consumable_id) && line.qty > 0);
+            const payloadAdjustLines = siteAdjustLines
+                .filter((line) => line.consumable_id && line.qty !== '')
+                .map((line) => ({
+                    consumable_id: Number(line.consumable_id),
+                    qty: Number(line.qty)
+                }))
+                .filter((line) => Number.isInteger(line.consumable_id) && Number.isInteger(line.qty) && line.qty !== 0);
             await apiFetch(url, {
                 method,
-                body: { ...siteForm, factory_ids: Array.from(siteForm.factory_ids).map(Number) },
+                body: {
+                    ...siteForm,
+                    factory_ids: Array.from(siteForm.factory_ids).map(Number),
+                    baseline_lines: isEdit ? undefined : payloadBaselineLines,
+                    adjust_lines: isEdit ? payloadAdjustLines : undefined
+                },
                 userId
             });
             handleCancel();
@@ -322,6 +359,62 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
         setFactoryAdjustLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
     }
 
+    function updateSiteBaselineLine(index, field, value) {
+        setSiteBaselineLines((prev) =>
+            prev.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, [field]: value } : line
+            )
+        );
+    }
+
+    function addSiteBaselineLine() {
+        setSiteBaselineLines((prev) => [...prev, { consumable_id: '', qty: '' }]);
+    }
+
+    function removeSiteBaselineLine(index) {
+        setSiteBaselineLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
+    }
+
+    function updateSiteAdjustLine(index, field, value) {
+        setSiteAdjustLines((prev) =>
+            prev.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, [field]: value } : line
+            )
+        );
+    }
+
+    function addSiteAdjustLine() {
+        setSiteAdjustLines((prev) => [...prev, { consumable_id: '', qty: '' }]);
+    }
+
+    function removeSiteAdjustLine(index) {
+        setSiteAdjustLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
+    }
+
+    const queueRemoveSiteConsumable = (consumableId) => {
+        const currentQty = siteBalances[consumableId] ?? 0;
+        if (!currentQty) {
+            return;
+        }
+        setSiteAdjustLines((prev) => {
+            const next = [...prev];
+            const existingIndex = next.findIndex(
+                (line) => Number(line.consumable_id) === Number(consumableId)
+            );
+            const qtyValue = String(-currentQty);
+            if (existingIndex >= 0) {
+                next[existingIndex] = { ...next[existingIndex], consumable_id: String(consumableId), qty: qtyValue };
+                return next;
+            }
+            const emptyIndex = next.findIndex((line) => !line.consumable_id && line.qty === '');
+            if (emptyIndex >= 0) {
+                next[emptyIndex] = { consumable_id: String(consumableId), qty: qtyValue };
+                return next;
+            }
+            return [...next, { consumable_id: String(consumableId), qty: qtyValue }];
+        });
+    };
+
     return (
         <div>
             <div className="tabs">
@@ -397,6 +490,149 @@ export function AdminPanel({ user, userId, factories, consumables, inventorySumm
                                         </label>
                                     ))}
                                 </div>
+
+                                {!editingSiteId && (
+                                    <>
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.site_baseline_lines')}</h4>
+                                        {siteBaselineLines.map((line, index) => (
+                                            <div className="row" key={`site-baseline-${index}`}>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.consumable')}</label>
+                                                    <select
+                                                        className="select"
+                                                        value={line.consumable_id}
+                                                        onChange={(event) => updateSiteBaselineLine(index, 'consumable_id', event.target.value)}
+                                                        disabled={isViewMode || !isAdmin}
+                                                    >
+                                                        <option value="">{t('admin.placeholders.select_consumable')}</option>
+                                                        {consumables.map((consumable) => (
+                                                            <option key={consumable.id} value={consumable.id}>
+                                                                {consumable.code} - {consumable.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.qty')}</label>
+                                                    <input
+                                                        className="input"
+                                                        type="number"
+                                                        min="0"
+                                                        value={line.qty}
+                                                        onChange={(event) => updateSiteBaselineLine(index, 'qty', event.target.value)}
+                                                        disabled={isViewMode || !isAdmin}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.remove_line')}</label>
+                                                    <button
+                                                        className="button secondary"
+                                                        type="button"
+                                                        onClick={() => removeSiteBaselineLine(index)}
+                                                        disabled={siteBaselineLines.length === 1 || isViewMode || !isAdmin}
+                                                    >
+                                                        {t('admin.labels.remove_line')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button className="button secondary" type="button" onClick={addSiteBaselineLine} disabled={isViewMode || !isAdmin}>
+                                            {t('admin.labels.add_line')}
+                                        </button>
+                                    </>
+                                )}
+
+                                {editingSiteId && (
+                                    <>
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.current_inventory')}</h4>
+                                        {consumables.filter((item) => (siteBalances[item.id] ?? 0) !== 0).length === 0 ? (
+                                            <div className="text-muted">{t('admin.labels.no_inventory')}</div>
+                                        ) : (
+                                            <ul className="list-group">
+                                                {consumables
+                                                    .filter((item) => (siteBalances[item.id] ?? 0) !== 0)
+                                                    .map((item) => (
+                                                        <li key={`site-inv-${item.id}`} className="list-item">
+                                                            <span>
+                                                                <strong>{item.code}</strong> - {item.name}: {siteBalances[item.id] ?? 0}
+                                                                {item.unit ? ` ${item.unit}` : ''}
+                                                            </span>
+                                                            <div className="actions">
+                                                                <button
+                                                                    className="button small ghost danger"
+                                                                    type="button"
+                                                                    onClick={() => queueRemoveSiteConsumable(item.id)}
+                                                                    disabled={isViewMode || !isAdmin}
+                                                                >
+                                                                    {t('admin.actions.remove_entry')}
+                                                                </button>
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        )}
+
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.site_adjust_lines')}</h4>
+                                        {siteAdjustLines.map((line, index) => {
+                                            const currentQty = line.consumable_id
+                                                ? (siteBalances[line.consumable_id] ?? 0)
+                                                : null;
+                                            return (
+                                                <div className="row" key={`site-adjust-${index}`}>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.consumable')}</label>
+                                                        <select
+                                                            className="select"
+                                                            value={line.consumable_id}
+                                                            onChange={(event) => updateSiteAdjustLine(index, 'consumable_id', event.target.value)}
+                                                            disabled={isViewMode || !isAdmin}
+                                                        >
+                                                            <option value="">{t('admin.placeholders.select_consumable')}</option>
+                                                            {consumables.map((consumable) => (
+                                                                <option key={consumable.id} value={consumable.id}>
+                                                                    {consumable.code} - {consumable.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.adjust_qty')}</label>
+                                                        <input
+                                                            className="input"
+                                                            type="number"
+                                                            step="1"
+                                                            value={line.qty}
+                                                            onChange={(event) => updateSiteAdjustLine(index, 'qty', event.target.value)}
+                                                            disabled={isViewMode || !isAdmin}
+                                                        />
+                                                        {currentQty !== null && (
+                                                            <div className="text-muted" style={{ marginTop: '6px' }}>
+                                                                {t('admin.labels.current_qty')}: {currentQty}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.remove_line')}</label>
+                                                        <button
+                                                            className="button secondary"
+                                                            type="button"
+                                                            onClick={() => removeSiteAdjustLine(index)}
+                                                            disabled={siteAdjustLines.length === 1 || isViewMode || !isAdmin}
+                                                        >
+                                                            {t('admin.labels.remove_line')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        <button className="button secondary" type="button" onClick={addSiteAdjustLine} disabled={isViewMode || !isAdmin}>
+                                            {t('admin.labels.add_line')}
+                                        </button>
+                                    </>
+                                )}
 
                                 {editingSiteId && (
                                     <div>

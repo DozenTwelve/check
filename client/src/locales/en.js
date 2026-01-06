@@ -146,10 +146,24 @@ export const en = {
         run_btn: 'Fetch Balances',
         yes: 'Yes',
         include_submitted: 'Include Submitted',
+        range_start: 'Start Date',
+        range_end: 'End Date',
+        consumable_filter: 'Consumable Filter',
+        all_consumables: 'All Consumables',
+        sections: {
+            factory_net: 'Factory Net Change',
+            site_debt: 'Site Debt Over Time'
+        },
         table: {
             location: 'Location',
+            factory: 'Factory',
+            site: 'Site',
+            date: 'Date',
             consumable: 'Consumable',
-            qty: 'As-of Qty'
+            qty: 'As-of Qty',
+            start_qty: 'Start Qty',
+            end_qty: 'End Qty',
+            delta: 'Delta'
         },
         empty: 'No report rows yet.'
     },
@@ -222,6 +236,16 @@ export const en = {
         submitting: 'Submitting...',
         submit: 'Submit Trip',
         recent_title: 'My Recent Trips',
+        incoming_title: 'Incoming Restocks',
+        incoming_loading: 'Loading incoming restocks...',
+        incoming_empty: 'No incoming restocks.',
+        incoming_confirm: 'Confirm Receipt',
+        incoming_table: {
+            date: 'Date',
+            site: 'Site',
+            lines: 'Lines',
+            action: 'Action'
+        },
         table: {
             date: 'Date',
             factory: 'Factory',
@@ -233,7 +257,9 @@ export const en = {
         notices: {
             load_error: 'Failed to load trips',
             submit_success: 'Trip submitted for approval',
-            submit_error: 'Submission failed'
+            submit_error: 'Submission failed',
+            confirm_success: 'Restock confirmed.',
+            confirm_error: 'Failed to confirm restock.'
         }
     },
     restock_confirm: {
@@ -246,7 +272,8 @@ export const en = {
     manager_dashboard: {
         tabs: {
             approvals: 'Approvals',
-            distribute: 'Distribution (Restock)'
+            distribute: 'Distribution (Restock)',
+            site_inventory: 'Site Inventory'
         },
         reviews: {
             pending_trips: 'Pending Driver Trips',
@@ -273,6 +300,19 @@ export const en = {
             note_placeholder: 'Note (Driver name, etc.)',
             dispatch: 'Dispatch Restock',
             dispatched_notice: 'Restock dispatched!'
+        },
+        site_inventory: {
+            title: 'Site Inventory',
+            refresh: 'Refresh',
+            loading: 'Loading site inventory...',
+            no_site: 'No site assigned for this manager.',
+            missing_location: 'Site inventory location missing.',
+            error: 'Failed to load site inventory.',
+            empty: 'No site inventory data.',
+            table: {
+                consumable: 'Consumable',
+                qty: 'Qty'
+            }
         }
     },
     admin: {
@@ -315,6 +355,8 @@ export const en = {
             assign_factory: 'Assign to Factory',
             baseline_lines: 'Factory Baseline (Consumables)',
             adjust_lines: 'Factory Inventory Adjustment',
+            site_baseline_lines: 'Site Initial Inventory',
+            site_adjust_lines: 'Site Inventory Adjustment',
             consumable: 'Consumable',
             qty: 'Quantity',
             current_qty: 'Current Qty',

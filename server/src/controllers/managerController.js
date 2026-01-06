@@ -164,12 +164,7 @@ exports.createRestock = async (req, res) => {
             );
         }
 
-        await client.query(
-            `UPDATE inventory_transfers
-       SET status = 'approved', approved_by = $2, approved_at = now()
-       WHERE id = $1`,
-            [transferId, userId]
-        );
+        // Driver/factory confirms receipt; do not auto-approve here.
 
         await client.query('COMMIT');
         res.status(201).json({ id: transferId });
