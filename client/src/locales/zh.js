@@ -315,6 +315,8 @@ export const zh = {
             qty: '数量',
             current_qty: '当前数量',
             adjust_qty: '调整数量（可正负）',
+            current_inventory: '当前库存',
+            no_inventory: '暂无库存记录。',
             add_line: '添加行',
             remove_line: '移除'
         },
@@ -343,6 +345,7 @@ export const zh = {
             close: '关闭',
             view: '查看',
             edit: '编辑',
+            remove_entry: '移除条目',
             delete: '删除'
         },
         status: {

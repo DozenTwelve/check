@@ -315,6 +315,8 @@ export const en = {
             qty: 'Quantity',
             current_qty: 'Current Qty',
             adjust_qty: 'Adjust Qty (+/-)',
+            current_inventory: 'Current Inventory',
+            no_inventory: 'No inventory recorded.',
             add_line: 'Add Line',
             remove_line: 'Remove'
         },
@@ -343,6 +345,7 @@ export const en = {
             close: 'Close',
             view: 'View',
             edit: 'Edit',
+            remove_entry: 'Remove Entry',
             delete: 'Delete'
         },
         status: {

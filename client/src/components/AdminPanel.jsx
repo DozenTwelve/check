@@ -263,6 +263,30 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
         setFactoryForm({ ...factoryForm, site_ids: Array.from(current) });
     };
 
+    const queueRemoveConsumable = (consumableId) => {
+        const currentQty = factoryBalances[consumableId] ?? 0;
+        if (!currentQty) {
+            return;
+        }
+        setFactoryAdjustLines((prev) => {
+            const next = [...prev];
+            const existingIndex = next.findIndex(
+                (line) => Number(line.consumable_id) === Number(consumableId)
+            );
+            const qtyValue = String(-currentQty);
+            if (existingIndex >= 0) {
+                next[existingIndex] = { ...next[existingIndex], consumable_id: String(consumableId), qty: qtyValue };
+                return next;
+            }
+            const emptyIndex = next.findIndex((line) => !line.consumable_id && line.qty === '');
+            if (emptyIndex >= 0) {
+                next[emptyIndex] = { consumable_id: String(consumableId), qty: qtyValue };
+                return next;
+            }
+            return [...next, { consumable_id: String(consumableId), qty: qtyValue }];
+        });
+    };
+
     function updateBaselineLine(index, field, value) {
         setBaselineLines((prev) =>
             prev.map((line, lineIndex) =>
@@ -548,6 +572,35 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
 
                                 {editingFactoryId && (
                                     <>
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.current_inventory')}</h4>
+                                        {consumables.filter((item) => (factoryBalances[item.id] ?? 0) !== 0).length === 0 ? (
+                                            <div className="text-muted">{t('admin.labels.no_inventory')}</div>
+                                        ) : (
+                                            <ul className="list-group">
+                                                {consumables
+                                                    .filter((item) => (factoryBalances[item.id] ?? 0) !== 0)
+                                                    .map((item) => (
+                                                        <li key={`factory-inv-${item.id}`} className="list-item">
+                                                            <span>
+                                                                <strong>{item.code}</strong> - {item.name}: {factoryBalances[item.id] ?? 0}
+                                                                {item.unit ? ` ${item.unit}` : ''}
+                                                            </span>
+                                                            <div className="actions">
+                                                                <button
+                                                                    className="button small ghost danger"
+                                                                    type="button"
+                                                                    onClick={() => queueRemoveConsumable(item.id)}
+                                                                    disabled={isViewMode || !isAdmin}
+                                                                >
+                                                                    {t('admin.actions.remove_entry')}
+                                                                </button>
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        )}
+
                                         <div className="divider"></div>
                                         <h4 className="section-title">{t('admin.labels.adjust_lines')}</h4>
                                         {factoryAdjustLines.map((line, index) => {

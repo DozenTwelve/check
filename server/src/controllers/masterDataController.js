@@ -505,6 +505,26 @@ exports.updateFactory = async (req, res) => {
                 }
             }
 
+            if (negativeLines.length > 0) {
+                const consumableIds = negativeLines.map((line) => line.consumable_id);
+                const balanceResult = await client.query(
+                    `SELECT consumable_id, as_of_qty
+           FROM inventory_balances_as_of(now(), true)
+           WHERE location_id = $1 AND consumable_id = ANY($2::bigint[])`,
+                    [factoryLocation.rows[0].id, consumableIds]
+                );
+                const availableMap = new Map(
+                    balanceResult.rows.map((row) => [Number(row.consumable_id), Number(row.as_of_qty)])
+                );
+                for (const line of negativeLines) {
+                    const availableQty = availableMap.get(line.consumable_id) || 0;
+                    if (line.qty > availableQty) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ error: 'insufficient_factory_inventory' });
+                    }
+                }
+            }
+
             if (positiveLines.length > 0) {
                 const transferResult = await client.query(
                     `INSERT INTO inventory_transfers
