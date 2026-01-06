@@ -310,9 +310,11 @@ export const zh = {
             assign_site: '分配到站点',
             assign_factory: '分配到分厂',
             baseline_lines: '分厂基线（耗材）',
+            adjust_lines: '分厂库存调整',
             consumable: '耗材',
             qty: '数量',
             current_qty: '当前数量',
+            adjust_qty: '调整数量（可正负）',
             add_line: '添加行',
             remove_line: '移除'
         },

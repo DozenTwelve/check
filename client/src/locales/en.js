@@ -310,9 +310,11 @@ export const en = {
             assign_site: 'Assign to Site',
             assign_factory: 'Assign to Factory',
             baseline_lines: 'Factory Baseline (Consumables)',
+            adjust_lines: 'Factory Inventory Adjustment',
             consumable: 'Consumable',
             qty: 'Quantity',
             current_qty: 'Current Qty',
+            adjust_qty: 'Adjust Qty (+/-)',
             add_line: 'Add Line',
             remove_line: 'Remove'
         },

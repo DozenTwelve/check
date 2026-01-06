@@ -28,6 +28,8 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
     const [userForm, setUserForm] = useState({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
     const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true, initial_qty: '', adjust_qty: '' });
     const [baselineLines, setBaselineLines] = useState([{ consumable_id: '', qty: '' }]);
+    const [factoryAdjustLines, setFactoryAdjustLines] = useState([{ consumable_id: '', qty: '' }]);
+    const [factoryBalances, setFactoryBalances] = useState({});
 
     // Associated Users State
     const [currentFactoryStaff, setCurrentFactoryStaff] = useState([]);
@@ -87,6 +89,8 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                 site_ids: initialSiteIds
             });
             setBaselineLines([{ consumable_id: '', qty: '' }]);
+            setFactoryAdjustLines([{ consumable_id: '', qty: '' }]);
+            setFactoryBalances({});
             apiFetch(`/factories/${item.id}/sites`, { userId }).then((factorySites) => {
                 if (Array.isArray(factorySites)) {
                     setFactoryForm((prev) => ({
@@ -94,6 +98,15 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                         site_ids: factorySites.map((site) => site.id)
                     }));
                 }
+            });
+            apiFetch('/factories/box-counts', { userId }).then((rows) => {
+                const map = {};
+                (rows || [])
+                    .filter((row) => Number(row.factory_id) === Number(item.id))
+                    .forEach((row) => {
+                        map[row.consumable_id] = row.qty;
+                    });
+                setFactoryBalances(map);
             });
             // Fetch staff
             apiFetch(`/factories/${item.id}/staff`, { userId }).then(staff => {
@@ -117,6 +130,7 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
         setIsViewMode(false);
         setEditingSiteId(null); setSiteForm({ name: '', code: '', is_active: true, factory_ids: [] }); setCurrentSiteManagers([]);
         setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], is_active: true }); setCurrentFactoryStaff([]);
+        setFactoryAdjustLines([{ consumable_id: '', qty: '' }]); setFactoryBalances({});
         setEditingUserId(null); setUserForm({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
         setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true, initial_qty: '', adjust_qty: '' });
         setBaselineLines([{ consumable_id: '', qty: '' }]);
@@ -173,6 +187,13 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                     qty: Number(line.qty)
                 }))
                 .filter((line) => Number.isInteger(line.consumable_id) && line.qty > 0);
+            const payloadAdjustLines = factoryAdjustLines
+                .filter((line) => line.consumable_id && line.qty !== '')
+                .map((line) => ({
+                    consumable_id: Number(line.consumable_id),
+                    qty: Number(line.qty)
+                }))
+                .filter((line) => Number.isInteger(line.consumable_id) && Number.isInteger(line.qty) && line.qty !== 0);
 
             await apiFetch(url, {
                 method,
@@ -181,7 +202,8 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                     name: factoryForm.name,
                     is_active: factoryForm.is_active,
                     site_ids: payloadSiteIds,
-                    baseline_lines: isEdit ? undefined : payloadLines
+                    baseline_lines: isEdit ? undefined : payloadLines,
+                    adjust_lines: isEdit ? payloadAdjustLines : undefined
                 },
                 userId
             });
@@ -255,6 +277,22 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
 
     function removeBaselineLine(index) {
         setBaselineLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
+    }
+
+    function updateAdjustLine(index, field, value) {
+        setFactoryAdjustLines((prev) =>
+            prev.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, [field]: value } : line
+            )
+        );
+    }
+
+    function addAdjustLine() {
+        setFactoryAdjustLines((prev) => [...prev, { consumable_id: '', qty: '' }]);
+    }
+
+    function removeAdjustLine(index) {
+        setFactoryAdjustLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
     }
 
     return (
@@ -509,14 +547,73 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                                 )}
 
                                 {editingFactoryId && (
-                                    <div>
+                                    <>
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.adjust_lines')}</h4>
+                                        {factoryAdjustLines.map((line, index) => {
+                                            const currentQty = line.consumable_id
+                                                ? (factoryBalances[line.consumable_id] ?? 0)
+                                                : null;
+                                            return (
+                                                <div className="row" key={`adjust-${index}`}>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.consumable')}</label>
+                                                        <select
+                                                            className="select"
+                                                            value={line.consumable_id}
+                                                            onChange={(event) => updateAdjustLine(index, 'consumable_id', event.target.value)}
+                                                            disabled={isViewMode || !isAdmin}
+                                                        >
+                                                            <option value="">{t('admin.placeholders.select_consumable')}</option>
+                                                            {consumables.map((consumable) => (
+                                                                <option key={consumable.id} value={consumable.id}>
+                                                                    {consumable.code} - {consumable.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.adjust_qty')}</label>
+                                                        <input
+                                                            className="input"
+                                                            type="number"
+                                                            step="1"
+                                                            value={line.qty}
+                                                            onChange={(event) => updateAdjustLine(index, 'qty', event.target.value)}
+                                                            disabled={isViewMode || !isAdmin}
+                                                        />
+                                                        {currentQty !== null && (
+                                                            <div className="text-muted" style={{ marginTop: '6px' }}>
+                                                                {t('admin.labels.current_qty')}: {currentQty}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <label className="label">{t('admin.labels.remove_line')}</label>
+                                                        <button
+                                                            className="button secondary"
+                                                            type="button"
+                                                            onClick={() => removeAdjustLine(index)}
+                                                            disabled={factoryAdjustLines.length === 1 || isViewMode || !isAdmin}
+                                                        >
+                                                            {t('admin.labels.remove_line')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        <button className="button secondary" type="button" onClick={addAdjustLine} disabled={isViewMode || !isAdmin}>
+                                            {t('admin.labels.add_line')}
+                                        </button>
+
+                                        <div className="divider" style={{ marginTop: '16px' }}></div>
                                         <label className="label">{t('admin.labels.assigned_staff')}</label>
                                         <div className="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
                                             {currentFactoryStaff.length > 0 ? currentFactoryStaff.map(u => (
                                                 <span key={u.id} className="tag">{u.display_name} ({getRoleLabel(u.role)})</span>
                                             )) : <span className="text-muted">{t('admin.labels.no_staff')}</span>}
                                         </div>
-                                    </div>
+                                    </>
                                 )}
 
                                 <div className="row">
