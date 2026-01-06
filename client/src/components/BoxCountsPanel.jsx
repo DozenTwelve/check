@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefreshMs = 15000 }) {
+export function BoxCountsPanel({ userId, title, autoRefreshMs = 15000 }) {
     const { t } = useTranslation();
     const [counts, setCounts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
         setHistoryError(false);
         setHistoryLoading(true);
         try {
-            const data = await apiFetch(`/factories/${factory.id}/box-history`, { userId });
+            const data = await apiFetch(`/factories/${factory.factory_id}/box-history`, { userId });
             setHistory(data?.events || []);
         } catch (err) {
             console.error(err);
@@ -79,6 +79,27 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
         return () => clearInterval(interval);
     }, [autoRefreshMs, loadCounts]);
 
+    const groupedFactories = counts.reduce((acc, row) => {
+        const key = row.factory_id;
+        if (!acc[key]) {
+            acc[key] = {
+                factory_id: row.factory_id,
+                factory_code: row.factory_code,
+                factory_name: row.factory_name,
+                items: []
+            };
+        }
+        acc[key].items.push(row);
+        return acc;
+    }, {});
+
+    const factoryRows = Object.values(groupedFactories)
+        .map((factory) => ({
+            ...factory,
+            items: factory.items.slice().sort((a, b) => String(a.consumable_code).localeCompare(String(b.consumable_code)))
+        }))
+        .sort((a, b) => String(a.factory_code).localeCompare(String(b.factory_code)));
+
     return (
         <section className="card" style={{ '--delay': '80ms', marginBottom: '24px' }}>
             <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -95,31 +116,41 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
                     <thead>
                         <tr>
                             <th>{t('box_counts.table.factory')}</th>
-                            {showBaseline && <th>{t('box_counts.table.baseline')}</th>}
+                            <th>{t('box_counts.table.consumable')}</th>
                             <th>{t('box_counts.table.current')}</th>
                             <th>{t('box_counts.table.history')}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {counts.map((row) => (
-                            <tr key={row.id}>
-                                <td>{row.code} - {row.name}</td>
-                                {showBaseline && <td>{row.baseline_boxes}</td>}
-                                <td style={{ fontWeight: 600 }}>{row.current_boxes}</td>
-                                <td>
-                                    <button
-                                        className="button small ghost"
-                                        type="button"
-                                        onClick={() => openHistory(row)}
-                                    >
-                                        {t('box_counts.view_history')}
-                                    </button>
-                                </td>
-                            </tr>
+                        {factoryRows.map((factory) => (
+                            <React.Fragment key={factory.factory_id}>
+                                <tr className="row-header">
+                                    <td colSpan={4}>
+                                        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <strong>{factory.factory_code} - {factory.factory_name}</strong>
+                                            <button
+                                                className="button small ghost"
+                                                type="button"
+                                                onClick={() => openHistory(factory)}
+                                            >
+                                                {t('box_counts.view_history')}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {factory.items.map((item) => (
+                                    <tr key={`${factory.factory_id}-${item.consumable_id}`}>
+                                        <td></td>
+                                        <td>{item.consumable_code} - {item.consumable_name}</td>
+                                        <td style={{ fontWeight: 600 }}>{item.qty}</td>
+                                        <td></td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
                         ))}
-                        {counts.length === 0 && (
+                        {factoryRows.length === 0 && (
                             <tr>
-                                <td colSpan={showBaseline ? 4 : 3}>{t('box_counts.empty')}</td>
+                                <td colSpan={4}>{t('box_counts.empty')}</td>
                             </tr>
                         )}
                     </tbody>
@@ -143,7 +174,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
                         <div className="modal-header">
                             <h3>
                                 {t('box_counts.history_title', {
-                                    factory: `${selectedFactory.code} - ${selectedFactory.name}`
+                                    factory: `${selectedFactory.factory_code} - ${selectedFactory.factory_name}`
                                 })}
                             </h3>
                             <button className="button ghost small" type="button" onClick={closeHistory}>
@@ -161,6 +192,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
                                     <tr>
                                         <th>{t('box_counts.history.time')}</th>
                                         <th>{t('box_counts.history.type')}</th>
+                                        <th>{t('box_counts.history.consumable')}</th>
                                         <th>{t('box_counts.history.change')}</th>
                                         <th>{t('box_counts.history.total')}</th>
                                         <th>{t('box_counts.history.actor')}</th>
@@ -172,6 +204,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
                                         <tr key={`${event.event_type}-${event.ref_id ?? 'base'}-${index}`}>
                                             <td>{formatEventTime(event.event_time)}</td>
                                             <td>{getEventLabel(event.event_type)}</td>
+                                            <td>{event.consumable_code ? `${event.consumable_code} - ${event.consumable_name}` : event.consumable_id}</td>
                                             <td className={event.delta >= 0 ? 'delta-positive' : 'delta-negative'}>
                                                 {formatDelta(event.delta)}
                                             </td>
@@ -182,7 +215,7 @@ export function BoxCountsPanel({ userId, title, showBaseline = true, autoRefresh
                                     ))}
                                     {history.length === 0 && (
                                         <tr>
-                                            <td colSpan="6">{t('box_counts.history_empty')}</td>
+                                            <td colSpan="7">{t('box_counts.history_empty')}</td>
                                         </tr>
                                     )}
                                 </tbody>

@@ -11,10 +11,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { SessionControl } from './components/SessionControl';
 import { MasterDataSummary } from './components/MasterDataSummary';
 import { TripEntryForm } from './components/TripEntryForm';
-import { DailyOutboundForm } from './components/DailyOutboundForm';
 import { ManagerDashboard } from './components/ManagerDashboard';
-import { RestockConfirm } from './components/RestockConfirm';
-import { Confirmations } from './components/Confirmations';
 import { Adjustments } from './components/Adjustments';
 import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
@@ -65,20 +62,20 @@ function AppContent() {
   const { t, language, setLanguage } = useTranslation();
   const { path, navigate } = useRoute();
 
-  const { factories, consumables, loadMasterData } = useMasterData(user, userId, setNotice);
+  const { factories, consumables, globalBalances, loadMasterData } = useMasterData(user, userId, setNotice);
   const { dailyReturns, loadDailyReturns } = useDailyReturns(user, userId, setNotice);
 
   const [reportRows, setReportRows] = useState([]);
-  const [activeSection, setActiveSection] = useState('daily');
+  const [activeSection, setActiveSection] = useState('trips');
   const [managerTab, setManagerTab] = useState('approvals');
 
   const sections = useMemo(
     () => [
-      { key: 'daily', label: t('nav.daily_returns'), roles: ['driver', 'clerk'] },
-      { key: 'confirm', label: t('nav.confirmations'), roles: ['manager'] },
-      { key: 'adjust', label: t('nav.adjustments'), roles: ['clerk', 'manager'] },
+      { key: 'trips', label: t('nav.trips'), roles: ['driver'] },
+      { key: 'approvals', label: t('nav.approvals'), roles: ['manager', 'admin'] },
+      { key: 'adjust', label: t('nav.adjustments'), roles: ['manager', 'admin'] },
       { key: 'report', label: t('nav.reports'), roles: ['manager', 'admin'] },
-      { key: 'admin', label: t('nav.master_data'), roles: ['admin', 'manager'] }
+      { key: 'admin', label: t('nav.master_data'), roles: ['admin'] }
     ],
     [t]
   );
@@ -111,10 +108,10 @@ function AppContent() {
     }
   }, [sections, user, activeSection]);
 
-  async function handleReport(asOf, confirmedOnly) {
+  async function handleReport(asOf, confirmedOnly, locationType) {
     try {
       const data = await apiFetch(
-        `/reports/balances?as_of=${encodeURIComponent(asOf)}&confirmed_only=${confirmedOnly}`,
+        `/reports/balances?as_of=${encodeURIComponent(asOf)}&confirmed_only=${confirmedOnly}&location_type=${encodeURIComponent(locationType || 'factory')}`,
         { userId }
       );
       setReportRows(data || []);
@@ -203,6 +200,7 @@ function AppContent() {
           <MasterDataSummary
             factories={factories}
             consumables={consumables}
+            globalBalances={globalBalances}
             loadMasterData={loadMasterData}
           />
         </div>
@@ -225,35 +223,23 @@ function AppContent() {
 
             <div className="divider"></div>
 
-            {activeSection === 'daily' && user.role === 'driver' && (
-              <>
-                <RestockConfirm userId={userId} />
-                <TripEntryForm
-                  user={user}
-                  userId={userId}
-                  factories={factories}
-                  onNotice={setNotice}
-                />
-              </>
+            {activeSection === 'trips' && user.role === 'driver' && (
+              <TripEntryForm
+                user={user}
+                userId={userId}
+                factories={factories}
+                consumables={consumables}
+                onNotice={setNotice}
+              />
             )}
-            {activeSection === 'daily' && user.role === 'clerk' && (
-              <>
-                <RestockConfirm userId={userId} />
-                <DailyOutboundForm
-                  user={user}
-                  userId={userId}
-                  factories={factories}
-                  onNotice={setNotice}
-                />
-              </>
-            )}
-            {activeSection === 'daily' && !['driver', 'clerk'].includes(user.role) && (
+            {activeSection === 'trips' && user.role !== 'driver' && (
               <div className="notice">{t('app.select_role_workspace')}</div>
             )}
-            {activeSection === 'confirm' && (
+            {activeSection === 'approvals' && (
               <ManagerDashboard
                 userId={userId}
                 factories={factories}
+                consumables={consumables}
               />
             )}
             {activeSection === 'adjust' && (
@@ -266,12 +252,12 @@ function AppContent() {
               />
             )}
             {activeSection === 'report' && (
-              <Reports
-                onRun={handleReport}
-                reportRows={reportRows}
-                factories={factories}
-                consumables={consumables}
-              />
+                <Reports
+                  onRun={handleReport}
+                  reportRows={reportRows}
+                  factories={factories}
+                  consumables={consumables}
+                />
             )}
             {activeSection === 'admin' && (
               <AdminPanel
@@ -279,6 +265,7 @@ function AppContent() {
                 userId={userId}
                 factories={factories}
                 consumables={consumables}
+                globalBalances={globalBalances}
                 onRefresh={() => {
                   loadMasterData();
                   loadDailyReturns();
@@ -329,29 +316,19 @@ function AppContent() {
       <NoticeBanner notice={notice} />
 
       {user?.role === 'driver' && (
-        <>
-          <RestockConfirm userId={userId} />
-          <TripEntryForm
-            user={user}
-            userId={userId}
-            factories={factories}
-            onNotice={setNotice}
-          />
-        </>
+        <TripEntryForm
+          user={user}
+          userId={userId}
+          factories={factories}
+          consumables={consumables}
+          onNotice={setNotice}
+        />
       )}
 
       {user?.role === 'clerk' && (
-        <>
-          <RestockConfirm userId={userId} />
-          <section className="card" style={{ '--delay': '120ms' }}>
-            <DailyOutboundForm
-              user={user}
-              userId={userId}
-              factories={factories}
-              onNotice={setNotice}
-            />
-          </section>
-        </>
+        <section className="card" style={{ '--delay': '120ms' }}>
+          <div className="notice">{t('app.clerk_disabled')}</div>
+        </section>
       )}
 
       {user?.role === 'manager' && (
@@ -359,7 +336,6 @@ function AppContent() {
           <BoxCountsPanel
             userId={userId}
             title={t('box_counts.manager_title')}
-            showBaseline={false}
           />
           <section className="card" style={{ '--delay': '120ms' }}>
             <h2 className="section-title">{t('ops.manager.title')}</h2>
@@ -370,13 +346,6 @@ function AppContent() {
                 onClick={() => setManagerTab('approvals')}
               >
                 {t('ops.manager.tabs.approvals')}
-              </button>
-              <button
-                type="button"
-                className={`tab ${managerTab === 'confirmations' ? 'active' : ''}`}
-                onClick={() => setManagerTab('confirmations')}
-              >
-                {t('ops.manager.tabs.confirmations')}
               </button>
               <button
                 type="button"
@@ -400,14 +369,7 @@ function AppContent() {
               <ManagerDashboard
                 userId={userId}
                 factories={factories}
-              />
-            )}
-            {managerTab === 'confirmations' && (
-              <Confirmations
-                userId={userId}
-                dailyReturns={dailyReturns}
-                onRefresh={loadDailyReturns}
-                onNotice={setNotice}
+                consumables={consumables}
               />
             )}
             {managerTab === 'adjustments' && (
@@ -420,12 +382,12 @@ function AppContent() {
               />
             )}
             {managerTab === 'reports' && (
-              <Reports
-                onRun={handleReport}
-                reportRows={reportRows}
-                factories={factories}
-                consumables={consumables}
-              />
+                <Reports
+                  onRun={handleReport}
+                  reportRows={reportRows}
+                  factories={factories}
+                  consumables={consumables}
+                />
             )}
           </section>
         </>

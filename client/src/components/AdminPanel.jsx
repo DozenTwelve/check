@@ -3,7 +3,7 @@ import { apiFetch } from '../utils/api';
 import { useTranslation } from '../hooks/useTranslation';
 import { BoxCountsPanel } from './BoxCountsPanel';
 
-export function AdminPanel({ user, userId, factories, consumables, onRefresh, onNotice }) {
+export function AdminPanel({ user, userId, factories, consumables, globalBalances = {}, onRefresh, onNotice }) {
     const { t } = useTranslation();
     const getRoleLabel = (role) => {
         const label = t(`roles.${role}`);
@@ -24,15 +24,22 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
 
     // Forms
     const [siteForm, setSiteForm] = useState({ name: '', code: '', is_active: true, factory_ids: [] });
-    const [factoryForm, setFactoryForm] = useState({ name: '', code: '', site_ids: [], baseline_boxes: '', is_active: true });
+    const [factoryForm, setFactoryForm] = useState({ name: '', code: '', site_ids: [], is_active: true });
     const [userForm, setUserForm] = useState({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
-    const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true });
+    const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true, initial_qty: '', set_qty: '' });
+    const [baselineLines, setBaselineLines] = useState([{ consumable_id: '', qty: '' }]);
 
     // Associated Users State
     const [currentFactoryStaff, setCurrentFactoryStaff] = useState([]);
     const [currentSiteManagers, setCurrentSiteManagers] = useState([]);
 
     const isAdmin = user?.role === 'admin';
+    const currentConsumable = editingConsumableId
+        ? consumables.find((c) => Number(c.id) === Number(editingConsumableId))
+        : null;
+    const currentConsumableQty = editingConsumableId
+        ? (globalBalances[Number(editingConsumableId)] ?? 0)
+        : null;
 
     useEffect(() => {
         loadSites();
@@ -70,16 +77,23 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             });
         } else if (type === 'factory') {
             setEditingFactoryId(item.id);
+            const initialSiteIds = Array.isArray(item.site_ids)
+                ? item.site_ids.map((id) => Number(id)).filter(Number.isInteger)
+                : [];
             setFactoryForm({
                 name: item.name,
                 code: item.code,
-                baseline_boxes: item.baseline_boxes ?? 0,
                 is_active: item.is_active,
-                site_ids: []
+                site_ids: initialSiteIds
             });
-            // Fetch sites
-            apiFetch(`/factories/${item.id}/sites`, { userId }).then(sites => {
-                setFactoryForm(prev => ({ ...prev, site_ids: sites.map(s => s.id) }));
+            setBaselineLines([{ consumable_id: '', qty: '' }]);
+            apiFetch(`/factories/${item.id}/sites`, { userId }).then((factorySites) => {
+                if (Array.isArray(factorySites)) {
+                    setFactoryForm((prev) => ({
+                        ...prev,
+                        site_ids: factorySites.map((site) => site.id)
+                    }));
+                }
             });
             // Fetch staff
             apiFetch(`/factories/${item.id}/staff`, { userId }).then(staff => {
@@ -95,16 +109,17 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
             });
         } else if (type === 'consumable') {
             setEditingConsumableId(item.id);
-            setConsumableForm({ name: item.name, code: item.code, unit: item.unit, is_active: item.is_active });
+            setConsumableForm({ name: item.name, code: item.code, unit: item.unit, is_active: item.is_active, initial_qty: '', set_qty: '' });
         }
     };
 
     const handleCancel = () => {
         setIsViewMode(false);
         setEditingSiteId(null); setSiteForm({ name: '', code: '', is_active: true, factory_ids: [] }); setCurrentSiteManagers([]);
-        setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], baseline_boxes: '', is_active: true }); setCurrentFactoryStaff([]);
+        setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], is_active: true }); setCurrentFactoryStaff([]);
         setEditingUserId(null); setUserForm({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
-        setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true });
+        setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true, initial_qty: '', set_qty: '' });
+        setBaselineLines([{ consumable_id: '', qty: '' }]);
     };
 
     const handleDelete = async (id, endpoint, refresh) => {
@@ -147,18 +162,26 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
         const isEdit = !!editingFactoryId;
         const url = isEdit ? `/factories/${editingFactoryId}` : '/factories';
         const method = isEdit ? 'PUT' : 'POST';
-        const baselineValue = factoryForm.baseline_boxes === '' ? 0 : Number(factoryForm.baseline_boxes);
-        if (Number.isNaN(baselineValue) || baselineValue < 0) {
-            onNotice({ type: 'error', text: t('admin.notices.operation_failed') });
-            return;
-        }
         try {
+            const payloadSiteIds = (factoryForm.site_ids || [])
+                .map((id) => Number(id))
+                .filter((id) => Number.isInteger(id));
+            const payloadLines = baselineLines
+                .filter((line) => line.consumable_id && line.qty !== '')
+                .map((line) => ({
+                    consumable_id: Number(line.consumable_id),
+                    qty: Number(line.qty)
+                }))
+                .filter((line) => Number.isInteger(line.consumable_id) && line.qty > 0);
+
             await apiFetch(url, {
                 method,
                 body: {
-                    ...factoryForm,
-                    baseline_boxes: baselineValue,
-                    site_ids: Array.from(factoryForm.site_ids).map(Number)
+                    code: factoryForm.code,
+                    name: factoryForm.name,
+                    is_active: factoryForm.is_active,
+                    site_ids: payloadSiteIds,
+                    baseline_lines: isEdit ? undefined : payloadLines
                 },
                 userId
             });
@@ -211,13 +234,28 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
         setSiteForm({ ...siteForm, factory_ids: Array.from(current) });
     };
 
-    // Helper for multi-select (Sites)
-    const toggleSiteSelection = (id) => {
+    const toggleFactorySiteSelection = (id) => {
         const current = new Set(factoryForm.site_ids);
         if (current.has(id)) current.delete(id);
         else current.add(id);
         setFactoryForm({ ...factoryForm, site_ids: Array.from(current) });
     };
+
+    function updateBaselineLine(index, field, value) {
+        setBaselineLines((prev) =>
+            prev.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, [field]: value } : line
+            )
+        );
+    }
+
+    function addBaselineLine() {
+        setBaselineLines((prev) => [...prev, { consumable_id: '', qty: '' }]);
+    }
+
+    function removeBaselineLine(index) {
+        setBaselineLines((prev) => prev.filter((_, lineIndex) => lineIndex !== index));
+    }
 
     return (
         <div>
@@ -354,7 +392,6 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                     <BoxCountsPanel
                         userId={userId}
                         title={t('box_counts.admin_title')}
-                        showBaseline
                     />
                     <form onSubmit={handleFactorySubmit} className="card" style={{ borderColor: editingFactoryId ? 'var(--accent)' : '' }}>
                         <h3>
@@ -393,33 +430,83 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                     </label>
                                 </div>
                                 <div>
-                                    <label className="label">{t('admin.labels.baseline_boxes')}</label>
-                                    <input
-                                        className="input"
-                                        type="number"
-                                        min="0"
-                                        placeholder={t('admin.placeholders.baseline_boxes')}
-                                        value={factoryForm.baseline_boxes}
-                                        onChange={e => setFactoryForm({ ...factoryForm, baseline_boxes: e.target.value })}
-                                        required
-                                        disabled={isViewMode || !isAdmin}
-                                    />
+                                    <label className="label">{t('admin.labels.linked_sites')}</label>
+                                    <div className="row" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                                        {sites.map((site) => (
+                                            <label
+                                                key={site.id}
+                                                className="pill"
+                                                style={{
+                                                    background: factoryForm.site_ids.includes(site.id) ? 'var(--accent)' : '#eee',
+                                                    color: factoryForm.site_ids.includes(site.id) ? 'white' : 'black',
+                                                    cursor: isViewMode || !isAdmin ? 'default' : 'pointer',
+                                                    opacity: isViewMode || !isAdmin ? 0.8 : 1
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    style={{ display: 'none' }}
+                                                    checked={factoryForm.site_ids.includes(site.id)}
+                                                    onChange={() => !isViewMode && isAdmin && toggleFactorySiteSelection(site.id)}
+                                                    disabled={isViewMode || !isAdmin}
+                                                />
+                                                {site.name}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                <label className="label">{t('admin.labels.linked_sites')}</label>
-                                <div className="row" style={{ flexWrap: 'wrap', gap: '8px' }}>
-                                    {sites.map(s => (
-                                        <label key={s.id} className="pill" style={{
-                                            background: factoryForm.site_ids.includes(s.id) ? 'var(--accent)' : '#eee',
-                                            color: factoryForm.site_ids.includes(s.id) ? 'white' : 'black',
-                                            cursor: isViewMode || !isAdmin ? 'default' : 'pointer',
-                                            opacity: isViewMode || !isAdmin ? 0.8 : 1
-                                        }}>
-                                            <input type="checkbox" style={{ display: 'none' }} checked={factoryForm.site_ids.includes(s.id)} onChange={() => !isViewMode && isAdmin && toggleSiteSelection(s.id)} disabled={isViewMode || !isAdmin} />
-                                            {s.name}
-                                        </label>
-                                    ))}
-                                </div>
+                                {!editingFactoryId && (
+                                    <>
+                                        <div className="divider"></div>
+                                        <h4 className="section-title">{t('admin.labels.baseline_lines')}</h4>
+                                        {baselineLines.map((line, index) => (
+                                            <div className="row" key={`baseline-${index}`}>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.consumable')}</label>
+                                                    <select
+                                                        className="select"
+                                                        value={line.consumable_id}
+                                                        onChange={(event) => updateBaselineLine(index, 'consumable_id', event.target.value)}
+                                                        disabled={isViewMode || !isAdmin}
+                                                    >
+                                                        <option value="">{t('admin.placeholders.select_consumable')}</option>
+                                                        {consumables.map((consumable) => (
+                                                            <option key={consumable.id} value={consumable.id}>
+                                                                {consumable.code} - {consumable.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.qty')}</label>
+                                                    <input
+                                                        className="input"
+                                                        type="number"
+                                                        min="0"
+                                                        value={line.qty}
+                                                        onChange={(event) => updateBaselineLine(index, 'qty', event.target.value)}
+                                                        disabled={isViewMode || !isAdmin}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="label">{t('admin.labels.remove_line')}</label>
+                                                    <button
+                                                        className="button secondary"
+                                                        type="button"
+                                                        onClick={() => removeBaselineLine(index)}
+                                                        disabled={baselineLines.length === 1 || isViewMode || !isAdmin}
+                                                    >
+                                                        {t('admin.labels.remove_line')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button className="button secondary" type="button" onClick={addBaselineLine} disabled={isViewMode || !isAdmin}>
+                                            {t('admin.labels.add_line')}
+                                        </button>
+                                    </>
+                                )}
 
                                 {editingFactoryId && (
                                     <div>
@@ -590,6 +677,32 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                                 onChange={e => setConsumableForm({ ...consumableForm, unit: e.target.value })}
                                 required
                             />
+                            {!editingConsumableId && (
+                                <input
+                                    className="input"
+                                    type="number"
+                                    min="0"
+                                    placeholder={t('admin.placeholders.initial_qty')}
+                                    value={consumableForm.initial_qty}
+                                    onChange={e => setConsumableForm({ ...consumableForm, initial_qty: e.target.value })}
+                                />
+                            )}
+                            {editingConsumableId && (
+                                <input
+                                    className="input"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    placeholder={t('admin.placeholders.set_qty')}
+                                    value={consumableForm.set_qty}
+                                    onChange={e => setConsumableForm({ ...consumableForm, set_qty: e.target.value })}
+                                />
+                            )}
+                            {editingConsumableId && (
+                                <span className="tag">
+                                    {t('admin.labels.current_qty')}: {currentConsumableQty}{currentConsumable?.unit ? ` ${currentConsumable.unit}` : ''}
+                                </span>
+                            )}
                             <button className="button" type="submit">
                                 {editingConsumableId ? t('admin.actions.update') : t('admin.actions.create')}
                             </button>
@@ -599,7 +712,12 @@ export function AdminPanel({ user, userId, factories, consumables, onRefresh, on
                     <ul className="list-group">
                         {consumables.map(c => (
                             <li key={c.id} className="list-item">
-                                <span><strong>{c.code}</strong> - {c.name} ({c.unit})</span>
+                                <span>
+                                    <strong>{c.code}</strong> - {c.name} ({c.unit})
+                                    <span className="tag" style={{ marginLeft: '8px' }}>
+                                        {t('admin.labels.qty')}: {globalBalances[c.id] ?? 0}{c.unit ? ` ${c.unit}` : ''}
+                                    </span>
+                                </span>
                                 <div className="actions">
                                     <button className="button small ghost" onClick={() => handleEdit(c, 'consumable')}>{t('admin.actions.edit')}</button>
                                     <button className="button small ghost danger" onClick={() => handleDelete(c.id, '/consumables', onRefresh)}>{t('admin.actions.delete')}</button>

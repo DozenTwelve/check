@@ -8,8 +8,8 @@ export function useDailyReturns(user, userId, setNotice) {
 
     const loadDailyReturns = useCallback(async () => {
         try {
-            const query = user?.factory_id ? `?factory_id=${user.factory_id}` : '';
-            const data = await apiFetch(`/daily-returns${query}`, { userId });
+            const query = '?status=approved';
+            const data = await apiFetch(`/transfers${query}`, { userId });
             setDailyReturns(data || []);
         } catch (err) {
             if (setNotice) {

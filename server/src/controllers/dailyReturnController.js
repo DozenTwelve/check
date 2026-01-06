@@ -1,42 +1,70 @@
 const { pool } = require('../config/db');
 
 exports.listDailyReturns = async (req, res, next) => {
-    const { biz_date, factory_id } = req.query;
+    const { biz_date, transfer_type, status, location_id } = req.query;
     const filters = [];
     const values = [];
 
     if (biz_date) {
         values.push(biz_date);
-        filters.push(`d.biz_date = $${values.length}`);
+        filters.push(`t.biz_date = $${values.length}`);
     }
 
-    if (factory_id) {
-        values.push(Number.parseInt(factory_id, 10));
-        filters.push(`d.factory_id = $${values.length}`);
+    if (transfer_type) {
+        values.push(transfer_type);
+        filters.push(`t.transfer_type = $${values.length}`);
+    }
+
+    if (status) {
+        values.push(status);
+        filters.push(`t.status = $${values.length}`);
+    }
+
+    if (location_id) {
+        values.push(Number.parseInt(location_id, 10));
+        filters.push(`(t.from_location_id = $${values.length} OR t.to_location_id = $${values.length})`);
+    } else if (req.user.role === 'manager' && req.user.site_id) {
+        values.push(req.user.site_id);
+        filters.push(`(from_site.site_id = $${values.length} OR to_site.site_id = $${values.length})`);
+    } else if (req.user.factory_id) {
+        values.push(req.user.factory_id);
+        filters.push(`(from_factory.factory_id = $${values.length} OR to_factory.factory_id = $${values.length})`);
     }
 
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
     try {
         const result = await pool.query(
-            `SELECT d.*, 
+            `SELECT
+          t.*,
+          from_loc.location_type AS from_location_type,
+          from_loc.factory_id AS from_factory_id,
+          from_loc.site_id AS from_site_id,
+          to_loc.location_type AS to_location_type,
+          to_loc.factory_id AS to_factory_id,
+          to_loc.site_id AS to_site_id,
           COALESCE(
             json_agg(
               json_build_object(
                 'id', l.id,
                 'consumable_id', l.consumable_id,
-                'book_balance', l.book_balance,
-                'declared_qty', l.declared_qty,
+                'qty', l.qty,
                 'discrepancy_note', l.discrepancy_note
               )
             ) FILTER (WHERE l.id IS NOT NULL),
             '[]'
           ) AS lines
-       FROM daily_returns d
-       LEFT JOIN daily_return_lines l ON l.daily_return_id = d.id
+       FROM inventory_transfers t
+       LEFT JOIN inventory_locations from_loc ON from_loc.id = t.from_location_id
+       LEFT JOIN inventory_locations to_loc ON to_loc.id = t.to_location_id
+       LEFT JOIN inventory_locations from_factory ON from_factory.id = t.from_location_id AND from_factory.location_type = 'factory'
+       LEFT JOIN inventory_locations to_factory ON to_factory.id = t.to_location_id AND to_factory.location_type = 'factory'
+       LEFT JOIN inventory_locations from_site ON from_site.id = t.from_location_id AND from_site.location_type = 'site'
+       LEFT JOIN inventory_locations to_site ON to_site.id = t.to_location_id AND to_site.location_type = 'site'
+       LEFT JOIN inventory_transfer_lines l ON l.transfer_id = t.id
        ${whereClause}
-       GROUP BY d.id
-       ORDER BY d.biz_date DESC, d.id DESC`,
+       GROUP BY t.id, from_loc.id, to_loc.id, from_factory.id, to_factory.id, from_site.id, to_site.id
+       ORDER BY t.biz_date DESC, t.id DESC`,
             values
         );
 
@@ -46,76 +74,21 @@ exports.listDailyReturns = async (req, res, next) => {
     }
 };
 
-exports.createDailyReturn = async (req, res, next) => {
-    const { biz_date, factory_id, v_level, note, lines } = req.body;
-
-    if (!Array.isArray(lines) || lines.length === 0) {
-        return res.status(400).json({ error: 'lines_required' });
-    }
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const headerResult = await client.query(
-            `INSERT INTO daily_returns (biz_date, factory_id, v_level, created_by, note)
-       VALUES ($1, $2, COALESCE($3::verification_level, 'verbal_only'::verification_level), $4, $5)
-       RETURNING id`,
-            [biz_date, factory_id, v_level ?? null, req.user.id, note ?? null]
-        );
-
-        const dailyReturnId = headerResult.rows[0].id;
-
-        for (const line of lines) {
-            await client.query(
-                `INSERT INTO daily_return_lines
-         (daily_return_id, consumable_id, book_balance, declared_qty, discrepancy_note)
-         VALUES ($1, $2, $3, $4, $5)`,
-                [
-                    dailyReturnId,
-                    line.consumable_id,
-                    line.book_balance ?? 0,
-                    line.declared_qty,
-                    line.discrepancy_note ?? null
-                ]
-            );
-        }
-
-        await client.query('COMMIT');
-        res.status(201).json({ id: dailyReturnId });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        next(err);
-    } finally {
-        client.release();
-    }
+exports.createDailyReturn = async (_req, res) => {
+    res.status(410).json({ error: 'deprecated' });
 };
 
-exports.confirmDailyReturn = async (req, res, next) => {
-    const dailyReturnId = Number.parseInt(req.params.id, 10);
-
-    try {
-        const result = await pool.query(
-            `UPDATE daily_returns
-       SET status = 'confirmed', confirmed_by = $1, confirmed_at = now()
-       WHERE id = $2
-       RETURNING id, status, confirmed_by, confirmed_at`,
-            [req.user.id, dailyReturnId]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'daily_return_not_found' });
-        }
-
-        res.json(result.rows[0]);
-    } catch (err) {
-        next(err);
-    }
+exports.confirmDailyReturn = async (_req, res) => {
+    res.status(410).json({ error: 'deprecated' });
 };
 
 exports.createAdjustment = async (req, res, next) => {
-    const dailyReturnId = Number.parseInt(req.params.id, 10);
+    const transferId = Number.parseInt(req.params.id, 10);
     const { note, lines } = req.body;
+
+    if (!Number.isInteger(transferId)) {
+        return res.status(400).json({ error: 'invalid_transfer_id' });
+    }
 
     if (!Array.isArray(lines) || lines.length === 0) {
         return res.status(400).json({ error: 'lines_required' });
@@ -126,17 +99,17 @@ exports.createAdjustment = async (req, res, next) => {
         await client.query('BEGIN');
 
         const headerResult = await client.query(
-            `INSERT INTO daily_return_adjustments (daily_return_id, created_by, note)
+            `INSERT INTO inventory_adjustments (transfer_id, created_by, note)
        VALUES ($1, $2, $3)
        RETURNING id`,
-            [dailyReturnId, req.user.id, note ?? null]
+            [transferId, req.user.id, note ?? null]
         );
 
         const adjustmentId = headerResult.rows[0].id;
 
         for (const line of lines) {
             await client.query(
-                `INSERT INTO daily_return_adjustment_lines
+                `INSERT INTO inventory_adjustment_lines
          (adjustment_id, consumable_id, delta_qty, reason)
          VALUES ($1, $2, $3, $4)`,
                 [adjustmentId, line.consumable_id, line.delta_qty, line.reason ?? null]

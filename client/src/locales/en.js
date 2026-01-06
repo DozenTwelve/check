@@ -7,7 +7,8 @@ export const en = {
         api_offline: 'Offline',
         role: 'Role',
         factory: 'Factory',
-        select_role_workspace: 'Select a role workspace above.'
+        select_role_workspace: 'Select a role workspace above.',
+        clerk_disabled: 'Clerk workflow is not enabled in this version.'
     },
     common: {
         logout: 'Log Out',
@@ -29,15 +30,14 @@ export const en = {
     ops: {
         subtitle: {
             default: 'Choose an action to continue.',
-            driver: 'Record daily trips and confirm inbound restocks.',
-            clerk: 'Record daily outbound totals and confirm inbound restocks.',
-            manager: 'Review approvals, confirm returns, and run reports.'
+            driver: 'Record factory deliveries to the site.',
+            clerk: 'Clerk workflow is not enabled.',
+            manager: 'Review approvals, distribute inventory, and run reports.'
         },
         manager: {
             title: 'Manager Operations',
             tabs: {
                 approvals: 'Approvals',
-                confirmations: 'Confirmations',
                 adjustments: 'Adjustments',
                 reports: 'Reports'
             }
@@ -74,8 +74,8 @@ export const en = {
         }
     },
     nav: {
-        daily_returns: 'Daily Returns',
-        confirmations: 'Confirmations',
+        trips: 'Driver Trips',
+        approvals: 'Approvals',
         adjustments: 'Adjustments',
         reports: 'As-Of Report',
         master_data: 'Master Data'
@@ -119,8 +119,8 @@ export const en = {
         empty: 'No returns available.'
     },
     adjustments: {
-        daily_return: 'Daily Return',
-        select_return: 'Select return',
+        daily_return: 'Transfer',
+        select_return: 'Select transfer',
         note: 'Note',
         lines_title: 'Adjustment Lines',
         consumable: 'Consumable',
@@ -134,12 +134,16 @@ export const en = {
     reports: {
         as_of: 'As-Of Timestamp',
         confirmed_only: 'Confirmed Only',
+        location_type: 'Location Type',
+        location_factory: 'Factories',
+        location_site: 'Sites',
+        location_global: 'Global',
+        location_external: 'External',
         run_btn: 'Fetch Balances',
         yes: 'Yes',
         include_submitted: 'Include Submitted',
         table: {
-            biz_date: 'Biz Date',
-            factory: 'Factory',
+            location: 'Location',
             consumable: 'Consumable',
             qty: 'As-of Qty'
         },
@@ -160,13 +164,14 @@ export const en = {
         history_empty: 'No history rows yet.',
         table: {
             factory: 'Factory',
-            baseline: 'Baseline',
-            current: 'Current Boxes',
+            consumable: 'Consumable',
+            current: 'Current Qty',
             history: 'History'
         },
         history: {
             time: 'Time',
             type: 'Type',
+            consumable: 'Consumable',
             change: 'Change',
             total: 'Total',
             actor: 'By',
@@ -175,9 +180,12 @@ export const en = {
         },
         events: {
             baseline: 'Baseline',
-            trip_out: 'Driver Trip Out',
-            outbound_out: 'Daily Outbound',
-            restock_in: 'Restock In'
+            driver_trip: 'Driver Trip',
+            manager_restock: 'Manager Restock',
+            initial_inventory: 'Initial Inventory',
+            legacy_outbound: 'Legacy Outbound',
+            legacy_return: 'Legacy Return',
+            adjustment: 'Adjustment'
         }
     },
     daily_outbound: {
@@ -199,8 +207,12 @@ export const en = {
         select_site: 'Select Destination Site',
         select_site_placeholder: 'Select site',
         loading_sites: 'Loading sites...',
-        quantity_label: 'Quantity Delivered (Boxes)',
-        quantity_placeholder: 'e.g. 50',
+        lines_title: 'Consumable Lines',
+        consumable_label: 'Consumable',
+        select_consumable: 'Select consumable',
+        qty_label: 'Quantity',
+        remove_line: 'Remove',
+        add_line: 'Add Line',
         note_label_optional: 'Note (Optional)',
         note_placeholder: 'e.g. Morning delivery',
         submitting: 'Submitting...',
@@ -210,7 +222,7 @@ export const en = {
             date: 'Date',
             factory: 'Factory',
             site: 'Site',
-            qty: 'Qty',
+            lines: 'Lines',
             status: 'Status'
         },
         empty: 'No trips found.',
@@ -230,41 +242,30 @@ export const en = {
     manager_dashboard: {
         tabs: {
             approvals: 'Approvals',
-            platform: 'Hub Receipt (Platform)',
             distribute: 'Distribution (Restock)'
         },
         reviews: {
             pending_trips: 'Pending Driver Trips',
-            pending_reports: 'Pending Clerk Reports',
             table: {
                 date: 'Date',
                 driver: 'Driver',
-                clerk: 'Clerk',
                 factory: 'Factory',
-                qty: 'Qty',
+                lines: 'Lines',
                 action: 'Action'
             },
             approve: 'Approve',
-            empty_trips: 'No pending trips.',
-            empty_reports: 'No pending reports.'
-        },
-        platform: {
-            title: 'Record Platform Return',
-            qty_placeholder: 'Qty Received',
-            note_placeholder: 'Note (Optional)',
-            submit: 'Submit',
-            history_title: 'Recent History',
-            table: {
-                date: 'Date',
-                qty: 'Qty',
-                note: 'Note'
-            }
+            empty_trips: 'No pending trips.'
         },
         distribute: {
             title: 'Dispatch to Sub-Factory',
             factory_label: 'Factory',
             select_factory: 'Select Factory',
             quantity_label: 'Quantity',
+            lines_title: 'Consumable Lines',
+            consumable_label: 'Consumable',
+            select_consumable: 'Select consumable',
+            add_line: 'Add Line',
+            remove_line: 'Remove',
             note_placeholder: 'Note (Driver name, etc.)',
             dispatch: 'Dispatch Restock',
             dispatched_notice: 'Restock dispatched!'
@@ -300,7 +301,6 @@ export const en = {
             code: 'Code',
             name: 'Name',
             active: 'Active',
-            baseline_boxes: 'Baseline Boxes',
             linked_factories: 'Linked Sub-Factories',
             linked_sites: 'Linked Sites',
             assigned_managers: 'Assigned Managers',
@@ -308,7 +308,13 @@ export const en = {
             no_managers: 'No managers assigned',
             no_staff: 'No staff assigned',
             assign_site: 'Assign to Site',
-            assign_factory: 'Assign to Factory'
+            assign_factory: 'Assign to Factory',
+            baseline_lines: 'Factory Baseline (Consumables)',
+            consumable: 'Consumable',
+            qty: 'Quantity',
+            current_qty: 'Current Qty',
+            add_line: 'Add Line',
+            remove_line: 'Remove'
         },
         placeholders: {
             code: 'Code',
@@ -319,9 +325,11 @@ export const en = {
             no_factory: 'No Factory',
             password: 'Password',
             new_password_optional: 'New Password (Optional)',
-            baseline_boxes: 'e.g. 2000',
+            initial_qty: 'Initial Qty',
+            set_qty: 'Set Qty',
             select_site: '-- Select Site --',
-            select_factory: '-- Select Factory --'
+            select_factory: '-- Select Factory --',
+            select_consumable: '-- Select Consumable --'
         },
         buttons: {
             create: 'Create'
@@ -373,7 +381,7 @@ export const en = {
     notices: {
         user_not_found: 'User not found. Check the ID header.',
         master_data_error: 'Failed to load master data.',
-        daily_returns_error: 'Failed to load daily returns.',
+        daily_returns_error: 'Failed to load transfers.',
         report_error: 'Failed to load report rows.',
         daily_return_success: 'Daily return submitted.',
         daily_return_submit_error: 'Failed to submit daily return.',

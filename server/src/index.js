@@ -6,12 +6,10 @@ const { pool } = require('./config/db');
 // Routes
 const userRoutes = require('./routes/users');
 const masterDataRoutes = require('./routes/masterData');
-const dailyReturnRoutes = require('./routes/dailyReturns');
+const transferRoutes = require('./routes/transfers');
 const reportRoutes = require('./routes/reports');
 const tripRoutes = require('./routes/trips');
-const outboundRoutes = require('./routes/outbound');
 const managerRoutes = require('./routes/manager');
-const restockRoutes = require('./routes/restocks');
 
 const app = express();
 app.use(cors());
@@ -30,12 +28,10 @@ app.get('/health', async (req, res, next) => {
 // Mount Routes
 app.use('/users', userRoutes);
 app.use('/', masterDataRoutes);
-app.use('/daily-returns', dailyReturnRoutes);
+app.use('/transfers', transferRoutes);
 app.use('/reports', reportRoutes);
 app.use('/trips', tripRoutes);
-app.use('/outbound', outboundRoutes);
 app.use('/manager', managerRoutes);
-app.use('/restocks', restockRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

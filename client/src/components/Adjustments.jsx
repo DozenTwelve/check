@@ -48,7 +48,7 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                 throw new Error('Missing data');
             }
 
-            await apiFetch(`/daily-returns/${dailyReturnId}/adjustments`, {
+            await apiFetch(`/transfers/${dailyReturnId}/adjustments`, {
                 method: 'POST',
                 body: payload,
                 userId
@@ -78,7 +78,7 @@ export function Adjustments({ userId, dailyReturns, consumables, onCreated, onNo
                         <option value="">{t('adjustments.select_return')}</option>
                         {dailyReturns.map((doc) => (
                             <option key={doc.id} value={doc.id}>
-                                #{doc.id} — {doc.biz_date} (factory {doc.factory_id})
+                                #{doc.id} — {doc.biz_date} ({doc.transfer_type})
                             </option>
                         ))}
                     </select>

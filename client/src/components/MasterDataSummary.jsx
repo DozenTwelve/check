@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
-export function MasterDataSummary({ factories, consumables, loadMasterData }) {
+export function MasterDataSummary({ factories, consumables, globalBalances = {}, loadMasterData }) {
     const { t } = useTranslation();
     const factoryItems = factories.map((factory) => ({
         id: factory.id,
@@ -9,7 +9,9 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
     }));
     const consumableItems = consumables.map((item) => ({
         id: item.id,
-        label: `${item.code} - ${item.name}`
+        label: `${item.code} - ${item.name}`,
+        qty: globalBalances[item.id] ?? 0,
+        unit: item.unit || ''
     }));
 
     return (
@@ -60,7 +62,9 @@ export function MasterDataSummary({ factories, consumables, loadMasterData }) {
                         ) : (
                             <ul className="stat-tooltip-list">
                                 {consumableItems.map((item) => (
-                                    <li key={item.id}>{item.label}</li>
+                                    <li key={item.id}>
+                                        {item.label}: {item.qty}{item.unit ? ` ${item.unit}` : ''}
+                                    </li>
                                 ))}
                             </ul>
                         )}

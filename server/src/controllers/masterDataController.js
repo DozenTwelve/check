@@ -11,6 +11,19 @@ function parseNonNegativeInteger(value) {
     return parsed;
 }
 
+function parseTransferLines(lines) {
+    if (!Array.isArray(lines) || lines.length === 0) {
+        return null;
+    }
+    const parsed = lines
+        .map((line) => ({
+            consumable_id: Number(line.consumable_id),
+            qty: Number(line.qty)
+        }))
+        .filter((line) => Number.isInteger(line.consumable_id) && line.qty > 0);
+    return parsed.length ? parsed : null;
+}
+
 // Consumables
 exports.listConsumables = async (req, res, next) => {
     try {
@@ -24,34 +37,161 @@ exports.listConsumables = async (req, res, next) => {
 };
 
 exports.createConsumable = async (req, res, next) => {
-    const { code, name, unit, is_active } = req.body;
+    const { code, name, unit, is_active, initial_qty } = req.body;
+    const initialQty = parseNonNegativeInteger(initial_qty);
 
+    if (Number.isNaN(initialQty)) {
+        return res.status(400).json({ error: 'Invalid initial_qty' });
+    }
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+
+        const result = await client.query(
             `INSERT INTO consumables (code, name, unit, is_active)
        VALUES ($1, $2, $3, COALESCE($4, true))
        RETURNING id, code, name, unit, is_active`,
             [code, name ?? null, unit ?? 'pcs', is_active]
         );
 
-        res.status(201).json(result.rows[0]);
+        const consumable = result.rows[0];
+        if (initialQty && initialQty > 0) {
+            const locations = await client.query(
+                `SELECT id, location_type
+         FROM inventory_locations
+         WHERE location_type IN ('global', 'external')`
+            );
+            const globalLocation = locations.rows.find((row) => row.location_type === 'global');
+            const externalLocation = locations.rows.find((row) => row.location_type === 'external');
+            if (!globalLocation || !externalLocation) {
+                await client.query('ROLLBACK');
+                return res.status(500).json({ error: 'inventory_locations_missing' });
+            }
+
+            const transferResult = await client.query(
+                `INSERT INTO inventory_transfers
+         (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+         VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                 'full_count'::verification_level, 'Initial inventory', 'initial_inventory')
+         RETURNING id`,
+                [externalLocation.id, globalLocation.id, req.user.id]
+            );
+
+            await client.query(
+                `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+         VALUES ($1, $2, $3)`,
+                [transferResult.rows[0].id, consumable.id, initialQty]
+            );
+
+            await client.query(
+                `UPDATE inventory_transfers
+         SET status = 'approved', approved_by = $2, approved_at = now()
+         WHERE id = $1`,
+                [transferResult.rows[0].id, req.user.id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json(consumable);
     } catch (err) {
+        await client.query('ROLLBACK');
         next(err);
+    } finally {
+        client.release();
     }
 };
 
 exports.updateConsumable = async (req, res, next) => {
     const { id } = req.params;
-    const { code, name, unit, is_active } = req.body;
+    const { code, name, unit, is_active, set_qty } = req.body;
+    const setQty = parseNonNegativeInteger(set_qty);
+
+    if (Number.isNaN(setQty)) {
+        return res.status(400).json({ error: 'Invalid set_qty' });
+    }
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+
+        const result = await client.query(
             `UPDATE consumables SET code = $1, name = $2, unit = $3, is_active = $4, updated_at = now() 
        WHERE id = $5 RETURNING *`,
             [code, name, unit, is_active, id]
         );
-        if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+        if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Not found' });
+        }
+
+        if (setQty !== null) {
+            const locations = await client.query(
+                `SELECT id, location_type
+         FROM inventory_locations
+         WHERE location_type IN ('global', 'external')`
+            );
+            const globalLocation = locations.rows.find((row) => row.location_type === 'global');
+            const externalLocation = locations.rows.find((row) => row.location_type === 'external');
+            if (!globalLocation || !externalLocation) {
+                await client.query('ROLLBACK');
+                return res.status(500).json({ error: 'inventory_locations_missing' });
+            }
+
+            const balanceResult = await client.query(
+                `SELECT COALESCE(b.as_of_qty, 0) AS qty
+         FROM inventory_locations l
+         LEFT JOIN inventory_balances_as_of(now(), true) b
+           ON b.location_id = l.id AND b.consumable_id = $1
+         WHERE l.location_type = 'global'
+         LIMIT 1`,
+                [id]
+            );
+
+            const currentQty = balanceResult.rows[0]?.qty ?? 0;
+            const deltaValue = setQty - currentQty;
+            if (deltaValue !== 0) {
+                const delta = Math.abs(deltaValue);
+                const fromLocation = deltaValue > 0 ? externalLocation.id : globalLocation.id;
+                const toLocation = deltaValue > 0 ? globalLocation.id : externalLocation.id;
+
+                const transferResult = await client.query(
+                    `INSERT INTO inventory_transfers
+           (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+           VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                   'full_count'::verification_level, $4, 'admin_adjustment')
+           RETURNING id`,
+                    [
+                        fromLocation,
+                        toLocation,
+                        req.user.id,
+                        `Admin set quantity from ${currentQty} to ${setQty}`
+                    ]
+                );
+
+                await client.query(
+                    `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+           VALUES ($1, $2, $3)`,
+                    [transferResult.rows[0].id, id, delta]
+                );
+
+                await client.query(
+                    `UPDATE inventory_transfers
+           SET status = 'approved', approved_by = $2, approved_at = now()
+           WHERE id = $1`,
+                    [transferResult.rows[0].id, req.user.id]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
         res.json(result.rows[0]);
-    } catch (err) { next(err); }
+    } catch (err) {
+        await client.query('ROLLBACK');
+        next(err);
+    } finally {
+        client.release();
+    }
 };
 
 exports.deleteConsumable = async (req, res, next) => {
@@ -71,7 +211,19 @@ exports.deleteConsumable = async (req, res, next) => {
 exports.getFactories = async (req, res, next) => {
     try {
         const result = await pool.query(
-            'SELECT id, code, name, is_active, baseline_boxes FROM factories ORDER BY code'
+            `SELECT
+        f.id,
+        f.code,
+        f.name,
+        f.is_active,
+        COALESCE(
+          array_agg(sf.site_id ORDER BY sf.site_id) FILTER (WHERE sf.site_id IS NOT NULL),
+          ARRAY[]::bigint[]
+        ) AS site_ids
+      FROM factories f
+      LEFT JOIN site_factories sf ON sf.factory_id = f.id
+      GROUP BY f.id, f.code, f.name, f.is_active
+      ORDER BY f.code`
         );
         res.json(result.rows);
     } catch (err) {
@@ -126,36 +278,82 @@ exports.getSiteManagers = async (req, res) => {
 };
 
 exports.createFactory = async (req, res) => {
-    const { code, name, site_ids, baseline_boxes } = req.body; // site_ids is array of integers
-
-    const baselineValue = parseNonNegativeInteger(baseline_boxes);
-    if (Number.isNaN(baselineValue)) {
-        return res.status(400).json({ error: 'Invalid baseline_boxes' });
-    }
+    const { code, name, site_id, site_ids, baseline_lines } = req.body;
+    const parsedLines = parseTransferLines(baseline_lines);
 
     if (!code || !name) {
         return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const rawSiteIds = Array.isArray(site_ids)
+        ? site_ids
+        : (site_id !== undefined && site_id !== null ? [site_id] : []);
+    const finalSiteIds = Array.from(new Set(
+        rawSiteIds
+            .map((id) => Number.parseInt(id, 10))
+            .filter(Number.isInteger)
+    ));
+    if (finalSiteIds.length === 0) {
+        return res.status(400).json({ error: 'Missing site_ids' });
     }
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // 1. Create Factory
         const resFactory = await client.query(
-            'INSERT INTO factories (code, name, baseline_boxes) VALUES ($1, $2, $3) RETURNING *',
-            [code, name, baselineValue ?? 0]
+            'INSERT INTO factories (code, name) VALUES ($1, $2) RETURNING *',
+            [code, name]
         );
         const factoryId = resFactory.rows[0].id;
 
-        // 2. Link to Sites (if any)
-        if (site_ids && Array.isArray(site_ids) && site_ids.length > 0) {
-            for (const siteId of site_ids) {
+        for (const siteId of finalSiteIds) {
+            await client.query(
+                'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [siteId, factoryId]
+            );
+        }
+
+        const locationResult = await client.query(
+            `INSERT INTO inventory_locations (location_type, factory_id, label)
+       VALUES ('factory', $1, $2)
+       RETURNING id`,
+            [factoryId, name]
+        );
+        const factoryLocationId = locationResult.rows[0].id;
+
+        if (parsedLines) {
+            const globalLocation = await client.query(
+                `SELECT id FROM inventory_locations WHERE location_type = 'global' LIMIT 1`
+            );
+            if (globalLocation.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(500).json({ error: 'inventory_locations_missing' });
+            }
+
+            const transferResult = await client.query(
+                `INSERT INTO inventory_transfers
+         (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+         VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                 'factory_directive'::verification_level, 'Factory baseline', 'baseline')
+         RETURNING id`,
+                [globalLocation.rows[0].id, factoryLocationId, req.user.id]
+            );
+
+            for (const line of parsedLines) {
                 await client.query(
-                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2)',
-                    [siteId, factoryId]
+                    `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+           VALUES ($1, $2, $3)`,
+                    [transferResult.rows[0].id, line.consumable_id, line.qty]
                 );
             }
+
+            await client.query(
+                `UPDATE inventory_transfers
+         SET status = 'approved', approved_by = $2, approved_at = now()
+         WHERE id = $1`,
+                [transferResult.rows[0].id, req.user.id]
+            );
         }
 
         await client.query('COMMIT');
@@ -174,36 +372,52 @@ exports.createFactory = async (req, res) => {
 
 exports.updateFactory = async (req, res) => {
     const { id } = req.params;
-    const { code, name, site_ids, is_active, baseline_boxes } = req.body;
+    const { code, name, site_id, site_ids, is_active } = req.body;
+    const hasSiteIds = Array.isArray(site_ids) || site_id !== undefined;
+    const rawSiteIds = Array.isArray(site_ids)
+        ? site_ids
+        : (site_id !== undefined && site_id !== null ? [site_id] : null);
+    const finalSiteIds = rawSiteIds === null
+        ? null
+        : Array.from(new Set(
+            rawSiteIds
+                .map((value) => Number.parseInt(value, 10))
+                .filter(Number.isInteger)
+        ));
 
-    const baselineValue = parseNonNegativeInteger(baseline_boxes);
-    if (Number.isNaN(baselineValue)) {
-        return res.status(400).json({ error: 'Invalid baseline_boxes' });
+    if (hasSiteIds && (!finalSiteIds || finalSiteIds.length === 0)) {
+        return res.status(400).json({ error: 'Missing site_ids' });
     }
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const result = await client.query(
-            `UPDATE factories SET code = $1, name = $2, is_active = $3, baseline_boxes = COALESCE($4, baseline_boxes), updated_at = now() 
-       WHERE id = $5 RETURNING *`,
-            [code, name, is_active ?? true, baselineValue, id]
+            `UPDATE factories SET code = $1, name = $2, is_active = $3, updated_at = now()
+       WHERE id = $4 RETURNING *`,
+            [code, name, is_active ?? true, id]
         );
         if (result.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Not found' });
         }
 
-        // Update sites: Wipe and Rewrite strategy for simplicity
-        await client.query('DELETE FROM site_factories WHERE factory_id = $1', [id]);
-        if (site_ids && Array.isArray(site_ids)) {
-            for (const siteId of site_ids) {
+        if (finalSiteIds) {
+            await client.query('DELETE FROM site_factories WHERE factory_id = $1', [id]);
+            for (const siteId of finalSiteIds) {
                 await client.query(
-                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2)',
+                    'INSERT INTO site_factories (site_id, factory_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
                     [siteId, id]
                 );
             }
         }
+
+        await client.query(
+            `UPDATE inventory_locations
+       SET label = $1
+       WHERE location_type = 'factory' AND factory_id = $2`,
+            [name, id]
+        );
 
         await client.query('COMMIT');
         res.json(result.rows[0]);
@@ -224,48 +438,37 @@ exports.getFactoryBoxCounts = async (req, res) => {
     }
 
     const params = [];
-    let joinClause = '';
+    let siteJoin = '';
     let whereClause = '';
     if (role === 'manager') {
-        joinClause = 'JOIN site_factories sf ON sf.factory_id = f.id';
+        siteJoin = 'JOIN site_factories sf ON sf.factory_id = f.id';
         whereClause = 'WHERE sf.site_id = $1';
         params.push(site_id);
     }
 
     try {
-        const result = await pool.query(`
-      SELECT DISTINCT
-        f.id,
-        f.code,
-        f.name,
-        f.baseline_boxes,
-        COALESCE(trip_out.total, 0) AS trips_out,
-        COALESCE(outbound_out.total, 0) AS outbound_out,
-        COALESCE(restock_in.total, 0) AS restocks_in,
-        (f.baseline_boxes + COALESCE(restock_in.total, 0) - COALESCE(trip_out.total, 0) - COALESCE(outbound_out.total, 0)) AS current_boxes
+        const result = await pool.query(
+            `
+      SELECT
+        f.id AS factory_id,
+        f.code AS factory_code,
+        f.name AS factory_name,
+        c.id AS consumable_id,
+        c.code AS consumable_code,
+        c.name AS consumable_name,
+        COALESCE(b.as_of_qty, 0) AS qty
       FROM factories f
-      ${joinClause}
-      LEFT JOIN (
-        SELECT factory_id, SUM(quantity) AS total
-        FROM return_trips
-        WHERE status = 'approved'
-        GROUP BY factory_id
-      ) trip_out ON trip_out.factory_id = f.id
-      LEFT JOIN (
-        SELECT factory_id, SUM(quantity) AS total
-        FROM daily_outbound
-        WHERE status = 'approved'
-        GROUP BY factory_id
-      ) outbound_out ON outbound_out.factory_id = f.id
-      LEFT JOIN (
-        SELECT factory_id, SUM(quantity) AS total
-        FROM factory_restocks
-        WHERE status = 'received'
-        GROUP BY factory_id
-      ) restock_in ON restock_in.factory_id = f.id
+      ${siteJoin}
+      JOIN inventory_locations lf
+        ON lf.location_type = 'factory' AND lf.factory_id = f.id
+      JOIN consumables c ON c.is_active = true
+      LEFT JOIN inventory_balances_as_of(now(), true) b
+        ON b.location_id = lf.id AND b.consumable_id = c.id
       ${whereClause}
-      ORDER BY f.code
-    `, params);
+      ORDER BY f.code, c.code
+      `,
+            params
+        );
 
         res.json(result.rows);
     } catch (err) {
@@ -298,7 +501,7 @@ exports.getFactoryBoxHistory = async (req, res) => {
         }
 
         const factoryResult = await pool.query(
-            'SELECT id, code, name, baseline_boxes, created_at FROM factories WHERE id = $1',
+            'SELECT id, code, name, created_at FROM factories WHERE id = $1',
             [factoryId]
         );
         if (factoryResult.rowCount === 0) {
@@ -308,68 +511,76 @@ exports.getFactoryBoxHistory = async (req, res) => {
         const factory = factoryResult.rows[0];
         const historyResult = await pool.query(
             `
-      WITH events AS (
+      WITH target AS (
+        SELECT id AS location_id
+        FROM inventory_locations
+        WHERE location_type = 'factory' AND factory_id = $1
+      ),
+      transfer_events AS (
         SELECT
-          $1::bigint AS factory_id,
-          $2::timestamptz AS event_time,
-          'baseline'::text AS event_type,
-          $3::integer AS delta,
-          0::integer AS event_order,
-          NULL::bigint AS ref_id,
-          NULL::text AS actor,
-          NULL::text AS note
-        UNION ALL
-        SELECT
-          t.factory_id,
-          t.updated_at AS event_time,
-          'trip_out' AS event_type,
-          -t.quantity AS delta,
-          1 AS event_order,
+          t.created_at AS event_time,
+          t.transfer_type::text AS event_type,
+          l.consumable_id,
+          CASE
+            WHEN t.to_location_id = target.location_id THEN l.qty
+            ELSE -l.qty
+          END AS delta,
           t.id AS ref_id,
           u.display_name AS actor,
           t.note AS note
-        FROM return_trips t
-        JOIN users u ON t.driver_id = u.id
-        WHERE t.factory_id = $1 AND t.status = 'approved'
-        UNION ALL
+        FROM inventory_transfers t
+        JOIN inventory_transfer_lines l ON l.transfer_id = t.id
+        JOIN target ON true
+        LEFT JOIN users u ON t.created_by = u.id
+        WHERE (t.from_location_id = target.location_id
+           OR t.to_location_id = target.location_id)
+          AND t.status = 'approved'
+      ),
+      adjustment_events AS (
         SELECT
-          o.factory_id,
-          o.updated_at AS event_time,
-          'outbound_out' AS event_type,
-          -o.quantity AS delta,
-          1 AS event_order,
-          o.id AS ref_id,
+          a.created_at AS event_time,
+          'adjustment'::text AS event_type,
+          l.consumable_id,
+          CASE
+            WHEN t.to_location_id = target.location_id THEN l.delta_qty
+            ELSE -l.delta_qty
+          END AS delta,
+          a.id AS ref_id,
           u.display_name AS actor,
-          NULL::text AS note
-        FROM daily_outbound o
-        JOIN users u ON o.clerk_id = u.id
-        WHERE o.factory_id = $1 AND o.status = 'approved'
+          a.note AS note
+        FROM inventory_adjustments a
+        JOIN inventory_adjustment_lines l ON l.adjustment_id = a.id
+        JOIN inventory_transfers t ON t.id = a.transfer_id
+        JOIN target ON true
+        LEFT JOIN users u ON a.created_by = u.id
+        WHERE (t.from_location_id = target.location_id
+           OR t.to_location_id = target.location_id)
+          AND t.status = 'approved'
+      ),
+      events AS (
+        SELECT * FROM transfer_events
         UNION ALL
-        SELECT
-          r.factory_id,
-          COALESCE(r.received_at, r.updated_at) AS event_time,
-          'restock_in' AS event_type,
-          r.quantity AS delta,
-          1 AS event_order,
-          r.id AS ref_id,
-          u.display_name AS actor,
-          r.note AS note
-        FROM factory_restocks r
-        JOIN users u ON r.manager_id = u.id
-        WHERE r.factory_id = $1 AND r.status = 'received'
+        SELECT * FROM adjustment_events
       )
       SELECT
-        event_time,
-        event_type,
-        delta,
-        ref_id,
-        actor,
-        note,
-        SUM(delta) OVER (ORDER BY event_time, event_order, ref_id NULLS FIRST) AS running_total
-      FROM events
-      ORDER BY event_time, event_order, ref_id NULLS FIRST
+        e.event_time,
+        e.event_type,
+        e.consumable_id,
+        c.code AS consumable_code,
+        c.name AS consumable_name,
+        e.delta,
+        e.ref_id,
+        e.actor,
+        e.note,
+        SUM(e.delta) OVER (
+          PARTITION BY e.consumable_id
+          ORDER BY e.event_time, e.ref_id NULLS FIRST
+        ) AS running_total
+      FROM events e
+      JOIN consumables c ON c.id = e.consumable_id
+      ORDER BY e.event_time, e.ref_id NULLS FIRST
       `,
-            [factoryId, factory.created_at, factory.baseline_boxes]
+            [factoryId]
         );
 
         res.json({ factory, events: historyResult.rows });
@@ -446,6 +657,12 @@ exports.createClientSite = async (req, res, next) => {
         );
         const siteId = result.rows[0].id;
 
+        await client.query(
+            `INSERT INTO inventory_locations (location_type, site_id, label)
+       VALUES ('site', $1, $2)`,
+            [siteId, name]
+        );
+
         if (factory_ids && Array.isArray(factory_ids)) {
             for (const factoryId of factory_ids) {
                 await client.query(
@@ -492,6 +709,13 @@ exports.updateClientSite = async (req, res, next) => {
                 );
             }
         }
+
+        await client.query(
+            `UPDATE inventory_locations
+       SET label = $1
+       WHERE location_type = 'site' AND site_id = $2`,
+            [name, id]
+        );
 
         await client.query('COMMIT');
         res.json(result.rows[0]);

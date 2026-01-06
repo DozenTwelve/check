@@ -1,17 +1,56 @@
 const { pool } = require('../config/db');
 
-// List trips for the current user (Driver) on a specific date (or just recent 50)
+function parseLines(lines) {
+    if (!Array.isArray(lines) || lines.length === 0) {
+        return null;
+    }
+    const parsed = lines
+        .map((line) => ({
+            consumable_id: Number(line.consumable_id),
+            qty: Number(line.qty)
+        }))
+        .filter((line) => Number.isInteger(line.consumable_id) && line.qty > 0);
+    if (parsed.length === 0) {
+        return null;
+    }
+    return parsed;
+}
+
 exports.listMyTrips = async (req, res) => {
     const userId = req.user.id;
-    // Optional: filter by date if needed, but for now just show recent
     try {
         const result = await pool.query(
-            `SELECT t.*, f.name as factory_name 
-       FROM return_trips t
-       JOIN factories f ON t.factory_id = f.id
-       WHERE t.driver_id = $1
-       ORDER BY t.created_at DESC
-       LIMIT 50`,
+            `SELECT
+        t.id,
+        t.biz_date,
+        t.status,
+        t.created_at,
+        f.id AS factory_id,
+        f.code AS factory_code,
+        f.name AS factory_name,
+        s.id AS site_id,
+        s.code AS site_code,
+        s.name AS site_name,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'consumable_id', l.consumable_id,
+              'qty', l.qty
+            )
+          ) FILTER (WHERE l.id IS NOT NULL),
+          '[]'
+        ) AS lines
+      FROM inventory_transfers t
+      JOIN inventory_locations lf ON t.from_location_id = lf.id
+      JOIN factories f ON lf.factory_id = f.id
+      JOIN inventory_locations ls ON t.to_location_id = ls.id
+      JOIN client_sites s ON ls.site_id = s.id
+      LEFT JOIN inventory_transfer_lines l ON l.transfer_id = t.id
+      WHERE t.created_by = $1
+        AND t.transfer_type = 'driver_trip'
+      GROUP BY t.id, f.id, s.id
+      ORDER BY t.created_at DESC
+      LIMIT 50`,
             [userId]
         );
         res.json(result.rows);
@@ -23,43 +62,99 @@ exports.listMyTrips = async (req, res) => {
 
 exports.createTrip = async (req, res) => {
     const userId = req.user.id;
-    const { biz_date, factory_id, site_id, quantity, note } = req.body;
+    const { biz_date, factory_id, site_id, lines, note, v_level } = req.body;
+    const factoryId = Number.parseInt(factory_id || req.user.factory_id, 10);
+    const siteId = Number.parseInt(site_id, 10);
+    const parsedLines = parseLines(lines);
 
-    if (!biz_date || !factory_id || !quantity || !site_id) {
+    if (!biz_date || !Number.isInteger(factoryId) || !Number.isInteger(siteId) || !parsedLines) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
+    if (req.user.factory_id && Number(req.user.factory_id) !== factoryId) {
+        return res.status(403).json({ error: 'factory_mismatch' });
+    }
 
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            `INSERT INTO return_trips (biz_date, factory_id, site_id, driver_id, quantity, note)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-            [biz_date, factory_id, site_id, userId, quantity, note]
+        await client.query('BEGIN');
+
+        const locationResult = await client.query(
+            `SELECT
+        lf.id AS from_location_id,
+        ls.id AS to_location_id
+      FROM inventory_locations lf
+      JOIN site_factories sf ON sf.factory_id = lf.factory_id AND sf.site_id = $2
+      JOIN inventory_locations ls ON ls.location_type = 'site' AND ls.site_id = sf.site_id
+      WHERE lf.location_type = 'factory' AND lf.factory_id = $1`,
+            [factoryId, siteId]
         );
-        res.status(201).json(result.rows[0]);
+
+        if (locationResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'factory_site_not_found' });
+        }
+
+        const { from_location_id, to_location_id } = locationResult.rows[0];
+        const headerResult = await client.query(
+            `INSERT INTO inventory_transfers
+       (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+       VALUES ($1, $2, $3, $4, 'submitted', COALESCE($5::verification_level, 'verbal_only'), $6, 'driver_trip')
+       RETURNING id`,
+            [biz_date, from_location_id, to_location_id, userId, v_level ?? null, note ?? null]
+        );
+
+        const transferId = headerResult.rows[0].id;
+        for (const line of parsedLines) {
+            await client.query(
+                `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+         VALUES ($1, $2, $3)`,
+                [transferId, line.consumable_id, line.qty]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ id: transferId });
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: 'Failed to create trip' });
+    } finally {
+        client.release();
     }
 };
 
 exports.deletePendingTrip = async (req, res) => {
     const userId = req.user.id;
-    const { id } = req.params;
+    const transferId = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(transferId)) {
+        return res.status(400).json({ error: 'Invalid transfer id' });
+    }
 
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            `DELETE FROM return_trips 
-       WHERE id = $1 AND driver_id = $2 AND status = 'pending'
+        await client.query('BEGIN');
+        await client.query(
+            `DELETE FROM inventory_transfer_lines
+       WHERE transfer_id = $1`,
+            [transferId]
+        );
+        const result = await client.query(
+            `DELETE FROM inventory_transfers
+       WHERE id = $1 AND created_by = $2 AND status = 'submitted' AND transfer_type = 'driver_trip'
        RETURNING id`,
-            [id, userId]
+            [transferId, userId]
         );
         if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Trip not found or not pending' });
         }
+        await client.query('COMMIT');
         res.json({ message: 'Trip deleted' });
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: 'Failed to delete trip' });
+    } finally {
+        client.release();
     }
 };

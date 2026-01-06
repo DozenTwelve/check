@@ -7,7 +7,8 @@ export const zh = {
         api_offline: '离线',
         role: '角色',
         factory: '分厂',
-        select_role_workspace: '请选择上方的角色工作区。'
+        select_role_workspace: '请选择上方的角色工作区。',
+        clerk_disabled: '当前版本未启用文员流程。'
     },
     common: {
         logout: '退出登录',
@@ -29,15 +30,14 @@ export const zh = {
     ops: {
         subtitle: {
             default: '请选择操作继续。',
-            driver: '记录每日行程并确认补货。',
-            clerk: '记录每日出库总量并确认补货。',
-            manager: '审批事项、确认回流并查看报表。'
+            driver: '记录分厂送达平台的耗材。',
+            clerk: '当前未启用文员流程。',
+            manager: '审批事项、分发耗材并查看报表。'
         },
         manager: {
             title: '经理操作台',
             tabs: {
                 approvals: '审批',
-                confirmations: '确认',
                 adjustments: '调整',
                 reports: '报表'
             }
@@ -74,8 +74,8 @@ export const zh = {
         }
     },
     nav: {
-        daily_returns: '每日回流',
-        confirmations: '确认单据',
+        trips: '司机行程',
+        approvals: '审批',
         adjustments: '调整单',
         reports: '截止报表',
         master_data: '基础数据管理'
@@ -119,8 +119,8 @@ export const zh = {
         empty: '暂无回流单。'
     },
     adjustments: {
-        daily_return: '关联回流单',
-        select_return: '选择回流单',
+        daily_return: '关联记录',
+        select_return: '选择记录',
         note: '备注',
         lines_title: '调整行',
         consumable: '耗材',
@@ -134,12 +134,16 @@ export const zh = {
     reports: {
         as_of: '截止时间',
         confirmed_only: '仅已确认',
+        location_type: '位置类型',
+        location_factory: '分厂',
+        location_site: '站点',
+        location_global: '全局',
+        location_external: '外部',
         run_btn: '查询余额',
         yes: '是',
         include_submitted: '包含未确认',
         table: {
-            biz_date: '业务日期',
-            factory: '分厂',
+            location: '位置',
             consumable: '耗材',
             qty: '截止数量'
         },
@@ -160,13 +164,14 @@ export const zh = {
         history_empty: '暂无记录。',
         table: {
             factory: '分厂',
-            baseline: '初始数量',
-            current: '当前箱量',
+            consumable: '耗材',
+            current: '当前数量',
             history: '明细'
         },
         history: {
             time: '时间',
             type: '类型',
+            consumable: '耗材',
             change: '变化',
             total: '累计',
             actor: '操作人',
@@ -174,10 +179,13 @@ export const zh = {
             system: '系统'
         },
         events: {
-            baseline: '初始数量',
-            trip_out: '司机送出',
-            outbound_out: '每日出库',
-            restock_in: '补货入库'
+            baseline: '基线配置',
+            driver_trip: '司机行程',
+            manager_restock: '经理补货',
+            initial_inventory: '初始库存',
+            legacy_outbound: '历史出库',
+            legacy_return: '历史回流',
+            adjustment: '调整'
         }
     },
     daily_outbound: {
@@ -199,8 +207,12 @@ export const zh = {
         select_site: '选择目的地站点',
         select_site_placeholder: '选择站点',
         loading_sites: '加载站点中...',
-        quantity_label: '送达数量（箱）',
-        quantity_placeholder: '例如 50',
+        lines_title: '耗材明细',
+        consumable_label: '耗材',
+        select_consumable: '选择耗材',
+        qty_label: '数量',
+        remove_line: '移除',
+        add_line: '添加行',
         note_label_optional: '备注（可选）',
         note_placeholder: '例如 早班配送',
         submitting: '提交中...',
@@ -210,7 +222,7 @@ export const zh = {
             date: '日期',
             factory: '分厂',
             site: '站点',
-            qty: '数量',
+            lines: '明细',
             status: '状态'
         },
         empty: '暂无行程记录。',
@@ -230,41 +242,30 @@ export const zh = {
     manager_dashboard: {
         tabs: {
             approvals: '审批',
-            platform: '平台回收（中转站）',
             distribute: '分发（补货）'
         },
         reviews: {
             pending_trips: '待审批司机行程',
-            pending_reports: '待审批文员报表',
             table: {
                 date: '日期',
                 driver: '司机',
-                clerk: '文员',
                 factory: '分厂',
-                qty: '数量',
+                lines: '明细',
                 action: '操作'
             },
             approve: '批准',
-            empty_trips: '暂无待审批行程。',
-            empty_reports: '暂无待审批报表。'
-        },
-        platform: {
-            title: '记录平台回收',
-            qty_placeholder: '回收数量',
-            note_placeholder: '备注（可选）',
-            submit: '提交',
-            history_title: '近期记录',
-            table: {
-                date: '日期',
-                qty: '数量',
-                note: '备注'
-            }
+            empty_trips: '暂无待审批行程。'
         },
         distribute: {
             title: '向分厂派发补货',
             factory_label: '分厂',
             select_factory: '选择分厂',
             quantity_label: '数量',
+            lines_title: '耗材明细',
+            consumable_label: '耗材',
+            select_consumable: '选择耗材',
+            add_line: '添加行',
+            remove_line: '移除',
             note_placeholder: '备注（司机姓名等）',
             dispatch: '派发补货',
             dispatched_notice: '补货已派发！'
@@ -300,7 +301,6 @@ export const zh = {
             code: '编码',
             name: '名称',
             active: '启用',
-            baseline_boxes: '初始箱数',
             linked_factories: '关联分厂',
             linked_sites: '关联站点',
             assigned_managers: '已分配经理',
@@ -308,7 +308,13 @@ export const zh = {
             no_managers: '暂无经理',
             no_staff: '暂无员工',
             assign_site: '分配到站点',
-            assign_factory: '分配到分厂'
+            assign_factory: '分配到分厂',
+            baseline_lines: '分厂基线（耗材）',
+            consumable: '耗材',
+            qty: '数量',
+            current_qty: '当前数量',
+            add_line: '添加行',
+            remove_line: '移除'
         },
         placeholders: {
             code: '编码',
@@ -319,9 +325,11 @@ export const zh = {
             no_factory: '无分厂',
             password: '密码',
             new_password_optional: '新密码（可选）',
-            baseline_boxes: '例如 2000',
+            initial_qty: '初始数量',
+            set_qty: '设置数量',
             select_site: '-- 选择站点 --',
-            select_factory: '-- 选择分厂 --'
+            select_factory: '-- 选择分厂 --',
+            select_consumable: '-- 选择耗材 --'
         },
         buttons: {
             create: '创建'
@@ -373,7 +381,7 @@ export const zh = {
     notices: {
         user_not_found: '用户未找到。请检查 ID 请求头。',
         master_data_error: '加载基础数据失败。',
-        daily_returns_error: '加载回流单失败。',
+        daily_returns_error: '加载记录失败。',
         report_error: '加载报表数据失败。',
         daily_return_success: '回流单已提交。',
         daily_return_submit_error: '提交回流单失败。',

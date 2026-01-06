@@ -8,10 +8,23 @@ async function runMigration() {
         const migrationFiles = [
             // '5_site_mn_hierarchy.sql', -- Already run
             '6_add_password_hash.sql',
-            '7_add_factory_baseline_boxes.sql'
+            '7_add_factory_baseline_boxes.sql',
+            '8_inventory_transfers.sql',
+            '9_admin_adjustment_type.sql'
         ];
 
         for (const file of migrationFiles) {
+            if (file === '8_inventory_transfers.sql') {
+                const check = await pool.query(
+                    `SELECT 1
+           FROM information_schema.tables
+           WHERE table_schema = 'public' AND table_name = 'inventory_transfers'`
+                );
+                if (check.rowCount > 0) {
+                    console.log(`Skipping ${file} (already applied).`);
+                    continue;
+                }
+            }
             const sqlPath = path.join(__dirname, file);
             const sql = fs.readFileSync(sqlPath, 'utf8');
 
