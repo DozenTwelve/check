@@ -326,7 +326,7 @@ export const zh = {
             password: '密码',
             new_password_optional: '新密码（可选）',
             initial_qty: '初始数量',
-            set_qty: '设置数量',
+            adjust_qty: '调整数量（可正负）',
             select_site: '-- 选择站点 --',
             select_factory: '-- 选择分厂 --',
             select_consumable: '-- 选择耗材 --'

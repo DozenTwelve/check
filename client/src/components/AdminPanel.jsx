@@ -26,7 +26,7 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
     const [siteForm, setSiteForm] = useState({ name: '', code: '', is_active: true, factory_ids: [] });
     const [factoryForm, setFactoryForm] = useState({ name: '', code: '', site_ids: [], is_active: true });
     const [userForm, setUserForm] = useState({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
-    const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true, initial_qty: '', set_qty: '' });
+    const [consumableForm, setConsumableForm] = useState({ name: '', code: '', unit: '', is_active: true, initial_qty: '', adjust_qty: '' });
     const [baselineLines, setBaselineLines] = useState([{ consumable_id: '', qty: '' }]);
 
     // Associated Users State
@@ -109,7 +109,7 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
             });
         } else if (type === 'consumable') {
             setEditingConsumableId(item.id);
-            setConsumableForm({ name: item.name, code: item.code, unit: item.unit, is_active: item.is_active, initial_qty: '', set_qty: '' });
+            setConsumableForm({ name: item.name, code: item.code, unit: item.unit, is_active: item.is_active, initial_qty: '', adjust_qty: '' });
         }
     };
 
@@ -118,7 +118,7 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
         setEditingSiteId(null); setSiteForm({ name: '', code: '', is_active: true, factory_ids: [] }); setCurrentSiteManagers([]);
         setEditingFactoryId(null); setFactoryForm({ name: '', code: '', site_ids: [], is_active: true }); setCurrentFactoryStaff([]);
         setEditingUserId(null); setUserForm({ username: '', display_name: '', role: 'driver', factory_id: '', site_id: '', password: '', is_active: true });
-        setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true, initial_qty: '', set_qty: '' });
+        setEditingConsumableId(null); setConsumableForm({ name: '', code: '', unit: '', is_active: true, initial_qty: '', adjust_qty: '' });
         setBaselineLines([{ consumable_id: '', qty: '' }]);
     };
 
@@ -691,11 +691,10 @@ export function AdminPanel({ user, userId, factories, consumables, globalBalance
                                 <input
                                     className="input"
                                     type="number"
-                                    min="0"
                                     step="1"
-                                    placeholder={t('admin.placeholders.set_qty')}
-                                    value={consumableForm.set_qty}
-                                    onChange={e => setConsumableForm({ ...consumableForm, set_qty: e.target.value })}
+                                    placeholder={t('admin.placeholders.adjust_qty')}
+                                    value={consumableForm.adjust_qty}
+                                    onChange={e => setConsumableForm({ ...consumableForm, adjust_qty: e.target.value })}
                                 />
                             )}
                             {editingConsumableId && (

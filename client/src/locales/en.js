@@ -326,7 +326,7 @@ export const en = {
             password: 'Password',
             new_password_optional: 'New Password (Optional)',
             initial_qty: 'Initial Qty',
-            set_qty: 'Set Qty',
+            adjust_qty: 'Adjust Qty (+/-)',
             select_site: '-- Select Site --',
             select_factory: '-- Select Factory --',
             select_consumable: '-- Select Consumable --'

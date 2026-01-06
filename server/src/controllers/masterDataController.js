@@ -11,6 +11,17 @@ function parseNonNegativeInteger(value) {
     return parsed;
 }
 
+function parseInteger(value) {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed)) {
+        return NaN;
+    }
+    return parsed;
+}
+
 function parseTransferLines(lines) {
     if (!Array.isArray(lines) || lines.length === 0) {
         return null;
@@ -104,11 +115,11 @@ exports.createConsumable = async (req, res, next) => {
 
 exports.updateConsumable = async (req, res, next) => {
     const { id } = req.params;
-    const { code, name, unit, is_active, set_qty } = req.body;
-    const setQty = parseNonNegativeInteger(set_qty);
+    const { code, name, unit, is_active, adjust_qty } = req.body;
+    const adjustQty = parseInteger(adjust_qty);
 
-    if (Number.isNaN(setQty)) {
-        return res.status(400).json({ error: 'Invalid set_qty' });
+    if (Number.isNaN(adjustQty)) {
+        return res.status(400).json({ error: 'Invalid adjust_qty' });
     }
 
     const client = await pool.connect();
@@ -125,7 +136,7 @@ exports.updateConsumable = async (req, res, next) => {
             return res.status(404).json({ error: 'Not found' });
         }
 
-        if (setQty !== null) {
+        if (adjustQty !== null && adjustQty !== 0) {
             const locations = await client.query(
                 `SELECT id, location_type
          FROM inventory_locations
@@ -138,50 +149,31 @@ exports.updateConsumable = async (req, res, next) => {
                 return res.status(500).json({ error: 'inventory_locations_missing' });
             }
 
-            const balanceResult = await client.query(
-                `SELECT COALESCE(b.as_of_qty, 0) AS qty
-         FROM inventory_locations l
-         LEFT JOIN inventory_balances_as_of(now(), true) b
-           ON b.location_id = l.id AND b.consumable_id = $1
-         WHERE l.location_type = 'global'
-         LIMIT 1`,
-                [id]
+            const delta = Math.abs(adjustQty);
+            const fromLocation = adjustQty > 0 ? externalLocation.id : globalLocation.id;
+            const toLocation = adjustQty > 0 ? globalLocation.id : externalLocation.id;
+
+            const transferResult = await client.query(
+                `INSERT INTO inventory_transfers
+         (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
+         VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
+                 'full_count'::verification_level, 'Admin inventory adjustment', 'admin_adjustment')
+         RETURNING id`,
+                [fromLocation, toLocation, req.user.id]
             );
 
-            const currentQty = balanceResult.rows[0]?.qty ?? 0;
-            const deltaValue = setQty - currentQty;
-            if (deltaValue !== 0) {
-                const delta = Math.abs(deltaValue);
-                const fromLocation = deltaValue > 0 ? externalLocation.id : globalLocation.id;
-                const toLocation = deltaValue > 0 ? globalLocation.id : externalLocation.id;
+            await client.query(
+                `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
+         VALUES ($1, $2, $3)`,
+                [transferResult.rows[0].id, id, delta]
+            );
 
-                const transferResult = await client.query(
-                    `INSERT INTO inventory_transfers
-           (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
-           VALUES (CURRENT_DATE, $1, $2, $3, 'submitted',
-                   'full_count'::verification_level, $4, 'admin_adjustment')
-           RETURNING id`,
-                    [
-                        fromLocation,
-                        toLocation,
-                        req.user.id,
-                        `Admin set quantity from ${currentQty} to ${setQty}`
-                    ]
-                );
-
-                await client.query(
-                    `INSERT INTO inventory_transfer_lines (transfer_id, consumable_id, qty)
-           VALUES ($1, $2, $3)`,
-                    [transferResult.rows[0].id, id, delta]
-                );
-
-                await client.query(
-                    `UPDATE inventory_transfers
-           SET status = 'approved', approved_by = $2, approved_at = now()
-           WHERE id = $1`,
-                    [transferResult.rows[0].id, req.user.id]
-                );
-            }
+            await client.query(
+                `UPDATE inventory_transfers
+         SET status = 'approved', approved_by = $2, approved_at = now()
+         WHERE id = $1`,
+                [transferResult.rows[0].id, req.user.id]
+            );
         }
 
         await client.query('COMMIT');
