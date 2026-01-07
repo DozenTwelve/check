@@ -147,6 +147,51 @@ exports.createRestock = async (req, res) => {
         }
 
         const { from_location_id, to_location_id } = locationResult.rows[0];
+        const totalsByConsumable = new Map();
+        for (const line of parsedLines) {
+            totalsByConsumable.set(
+                line.consumable_id,
+                (totalsByConsumable.get(line.consumable_id) || 0) + line.qty
+            );
+        }
+
+        const consumableIds = Array.from(totalsByConsumable.keys());
+        if (consumableIds.length > 0) {
+            const balanceResult = await client.query(
+                `SELECT consumable_id, as_of_qty
+         FROM inventory_balances_as_of(now(), true)
+         WHERE location_id = $1 AND consumable_id = ANY($2::bigint[])`,
+                [from_location_id, consumableIds]
+            );
+            const balanceMap = new Map(
+                balanceResult.rows.map((row) => [Number(row.consumable_id), Number(row.as_of_qty)])
+            );
+            const pendingResult = await client.query(
+                `SELECT l.consumable_id, SUM(l.qty)::integer AS pending_qty
+         FROM inventory_transfers t
+         JOIN inventory_transfer_lines l ON l.transfer_id = t.id
+         WHERE t.from_location_id = $1
+           AND t.transfer_type = 'manager_restock'
+           AND t.status = 'submitted'
+           AND l.consumable_id = ANY($2::bigint[])
+         GROUP BY l.consumable_id`,
+                [from_location_id, consumableIds]
+            );
+            const pendingMap = new Map(
+                pendingResult.rows.map((row) => [Number(row.consumable_id), Number(row.pending_qty)])
+            );
+
+            for (const [consumableId, requestedQty] of totalsByConsumable.entries()) {
+                const onHand = balanceMap.get(consumableId) || 0;
+                const pendingQty = pendingMap.get(consumableId) || 0;
+                const availableQty = onHand - pendingQty;
+                if (requestedQty > availableQty) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ error: 'insufficient_site_inventory' });
+                }
+            }
+        }
+
         const headerResult = await client.query(
             `INSERT INTO inventory_transfers
        (biz_date, from_location_id, to_location_id, created_by, status, v_level, note, transfer_type)
